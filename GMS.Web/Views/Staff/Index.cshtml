@@ -1,0 +1,192 @@
+@model GMS.Web.Models.ViewModels.AdminDashboardViewModel
+
+@{
+    ViewData["Title"] = "Staff Queue";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+<!-- Welcome Section for Department Officer -->
+<div class="card shadow-sm border-0 rounded-3 p-4 mb-4 bg-white">
+    <div class="d-flex align-items-center">
+        <div class="p-3 bg-primary bg-opacity-10 rounded-3 me-3 text-primary fs-1">
+            <i class="bi bi-briefcase-fill"></i>
+        </div>
+        <div>
+            <h3 class="fw-bold mb-1 text-dark">@ViewBag.DepartmentName Queue</h3>
+            <p class="text-secondary mb-0">Department Officer Portal | Description: @ViewBag.DepartmentDescription</p>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Cards row (specific to department) -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="metric-card m-total">
+            <span class="metric-title">Department Total</span>
+            <span class="metric-value">@Model.TotalCount</span>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card m-open">
+            <span class="metric-title">Open Tickets</span>
+            <span class="metric-value">@Model.OpenCount</span>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card m-progress">
+            <span class="metric-title">In Progress</span>
+            <span class="metric-value">@Model.InProgressCount</span>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card m-overdue">
+            <span class="metric-title">Overdue Alerts</span>
+            <span class="metric-value text-danger">@Model.OverdueCount</span>
+        </div>
+    </div>
+</div>
+
+<!-- Filters section -->
+<div class="card shadow-sm border-0 rounded-3 bg-white mb-4">
+    <div class="card-header bg-light py-3">
+        <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-funnel-fill me-2 text-primary"></i> Filter Department Queue</h6>
+    </div>
+    <div class="card-body p-3">
+        <form asp-action="Index" method="get">
+            <div class="row g-3 align-items-end">
+                <div class="col-sm-6 col-md-2">
+                    <label class="form-label small fw-semibold">Status</label>
+                    <select name="status" class="form-select form-select-sm form-control-gms">
+                        <option value="">-- All Statuses --</option>
+                        @foreach (var val in Enum.GetValues(typeof(GMS.Web.Models.Entities.GrievanceStatus)))
+                        {
+                            var selected = Model.SelectedStatus?.ToString() == val.ToString() ? "selected" : "";
+                            <!option value="@val" @selected>@val.ToString()</!option>
+                        }
+                    </select>
+                </div>
+                <div class="col-sm-6 col-md-2">
+                    <label class="form-label small fw-semibold">Priority</label>
+                    <select name="priority" class="form-select form-select-sm form-control-gms">
+                        <option value="">-- All Priorities --</option>
+                        @foreach (var val in Enum.GetValues(typeof(GMS.Web.Models.Entities.GrievancePriority)))
+                        {
+                            var selected = Model.SelectedPriority?.ToString() == val.ToString() ? "selected" : "";
+                            <!option value="@val" @selected>@val.ToString()</!option>
+                        }
+                    </select>
+                </div>
+                <div class="col-sm-6 col-md-2">
+                    <label class="form-label small fw-semibold d-block">Assignment</label>
+                    <div class="form-check form-switch form-control-sm pt-1">
+                        <input class="form-check-input" type="checkbox" name="myAssigned" id="myAssignedSwitch" value="true" @(ViewBag.MyAssigned == true ? "checked" : "") />
+                        <label class="form-check-label small fw-medium" for="myAssignedSwitch">My Assigned</label>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <label class="form-label small fw-semibold">Keyword Search</label>
+                    <input type="text" name="search" class="form-control form-control-sm form-control-gms" placeholder="Search Ticket, Title, Student..." value="@Model.SearchQuery" />
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-gms-primary btn-sm flex-grow-1">
+                        <i class="bi bi-filter"></i> Apply
+                    </button>
+                    <a asp-action="Index" class="btn btn-gms-secondary btn-sm flex-grow-1 text-center">
+                        Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Department Grievance table -->
+<div class="card shadow-sm border-0 rounded-3 bg-white">
+    <div class="card-header bg-light py-3">
+        <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-list-check me-2 text-primary"></i> Routed Grievances</h5>
+    </div>
+    <div class="card-body p-0">
+        @if (Model.Grievances.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover table-gms align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Ticket</th>
+                            <th>Title</th>
+                            <th>Student</th>
+                            <th>Submitted</th>
+                            <th>Status</th>
+                            <th>Flags</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Grievances)
+                        {
+                            var overdueClass = item.IsOverdue && item.Status != GMS.Web.Models.Entities.GrievanceStatus.Resolved ? "row-overdue" : "";
+                            <tr class="@overdueClass">
+                                <td class="fw-bold text-primary">@item.TicketNumber</td>
+                                <td>
+                                    <span class="d-block fw-semibold text-dark text-truncate" style="max-width: 300px;">@item.Title</span>
+                                    <small class="text-muted">@item.Category?.Name</small>
+                                </td>
+                                <td>
+                                    @if (item.IsAnonymous)
+                                    {
+                                        <span class="text-danger fw-medium"><i class="bi bi-eye-slash-fill me-1"></i> Anonymous</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="fw-medium text-dark">@item.Student?.FullName</span>
+                                        <small class="text-secondary d-block">ID: @item.Student?.StudentId</small>
+                                    }
+                                </td>
+                                <td class="small text-secondary">@item.SubmittedAt.ToString("d")</td>
+                                <td>
+                                    @if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.Open)
+                                    {
+                                        <span class="badge-status badge-status-open">Open</span>
+                                    }
+                                    else if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.InProgress)
+                                    {
+                                        <span class="badge-status badge-status-progress">InProgress</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge-status badge-status-resolved">Resolved</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-column gap-1">
+                                        @if (item.Priority == GMS.Web.Models.Entities.GrievancePriority.High)
+                                        {
+                                            <span class="badge-status badge-priority-high text-center">High</span>
+                                        }
+                                        @if (item.IsOverdue && item.Status != GMS.Web.Models.Entities.GrievanceStatus.Resolved)
+                                        {
+                                            <span class="badge bg-danger text-white text-center" style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">Overdue</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="text-end">
+                                    <a asp-action="Detail" asp-route-id="@item.Id" class="btn btn-sm btn-dark px-3 fw-semibold">
+                                        <i class="bi bi-pencil-square me-1"></i> Review
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-inbox-fill text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 fw-bold text-secondary">No grievances in queue</h5>
+                <p class="text-secondary small mb-0">All department grievances are currently resolved or none have been routed yet.</p>
+            </div>
+        }
+    </div>
+</div>

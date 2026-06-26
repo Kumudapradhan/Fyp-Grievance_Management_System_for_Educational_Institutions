@@ -1,0 +1,51 @@
+@{
+    Layout = "_Layout";
+}
+
+<div class="row">
+    <!-- Staff Sidebar -->
+    <div class="col-lg-3 mb-4">
+        <div class="card shadow-sm border-0 rounded-3 overflow-hidden">
+            <div class="card-header bg-dark text-white py-3">
+                <h5 class="card-title mb-0"><i class="bi bi-briefcase me-2"></i> Staff Panel</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                <a asp-controller="Staff" asp-action="Index" class="list-group-item list-group-item-action py-3 border-0 d-flex align-items-center">
+                    <i class="bi bi-list-task text-primary fs-5 me-3"></i>
+                    <div>
+                        <span class="d-block fw-semibold text-dark">My Queue</span>
+                        <small class="text-muted">Department cases</small>
+                    </div>
+                </a>
+                <a asp-controller="Staff" asp-action="Notifications" class="list-group-item list-group-item-action py-3 border-0 d-flex align-items-center border-top">
+                    <i class="bi bi-bell text-success fs-5 me-3"></i>
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <div>
+                            <span class="d-block fw-semibold text-dark">Notifications</span>
+                            <small class="text-muted">Direct updates</small>
+                        </div>
+                        @if (ViewBag.StaffUnreadCount != null && ViewBag.StaffUnreadCount > 0)
+                        {
+                            <span class="badge bg-danger rounded-pill">@ViewBag.StaffUnreadCount</span>
+                        }
+                    </div>
+                </a>
+            </div>
+            @if (ViewBag.DepartmentName != null)
+            {
+                <div class="card-footer bg-light border-0 py-3 text-center text-secondary small">
+                    <i class="bi bi-building me-1"></i> <strong>Dept:</strong> @ViewBag.DepartmentName
+                </div>
+            }
+        </div>
+    </div>
+    
+    <!-- Staff Page Body -->
+    <div class="col-lg-9">
+        @RenderBody()
+    </div>
+</div>
+
+@section Scripts {
+    @await RenderSectionAsync("Scripts", required: false)
+}

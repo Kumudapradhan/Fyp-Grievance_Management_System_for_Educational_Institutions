@@ -1,0 +1,228 @@
+@model GMS.Web.Models.ViewModels.ReportViewModel
+
+@{
+    ViewData["Title"] = "Analytics & Reports";
+    Layout = "_AdminLayout";
+}
+
+<div class="card shadow-sm border-0 rounded-3 p-4 mb-4 bg-white">
+    <h3 class="fw-bold mb-1 text-dark"><i class="bi bi-bar-chart-line-fill me-2 text-primary"></i> Analytical Intelligence Report</h3>
+    <p class="text-secondary mb-0">Review system activity, resolution efficiency, and departmental complaint volumes.</p>
+</div>
+
+<!-- Chart Containers Row 1 -->
+<div class="row g-4 mb-4">
+    <!-- Bar Chart: Department volumes -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 rounded-3 bg-white h-100">
+            <div class="card-header bg-light py-3 d-flex align-items-center justify-content-between">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-bar-chart-fill me-2 text-primary"></i> Grievances by Department (Current Month)</h6>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center p-3" style="min-height: 320px;">
+                @if (Model.DepartmentLabels.Any())
+                {
+                    <canvas id="departmentBarChart" style="max-height: 300px; width: 100%;"></canvas>
+                }
+                else
+                {
+                    <span class="text-muted small">No grievances submitted during the current calendar month.</span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Pie Chart: Status Breakdown -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 rounded-3 bg-white h-100">
+            <div class="card-header bg-light py-3">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-pie-chart-fill me-2 text-primary"></i> Split by Live Status</h6>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center p-3" style="min-height: 320px;">
+                @if (Model.StatusLabels.Any())
+                {
+                    <canvas id="statusPieChart" style="max-height: 280px; width: 100%;"></canvas>
+                }
+                else
+                {
+                    <span class="text-muted small">No grievance logs exist yet.</span>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart Container Row 2 -->
+<div class="card shadow-sm border-0 rounded-3 bg-white mb-4">
+    <div class="card-header bg-light py-3">
+        <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-activity me-2 text-primary"></i> Grievance Volume Over Time (Last 6 Months)</h6>
+    </div>
+    <div class="card-body p-3" style="min-height: 300px;">
+        @if (Model.MonthlyLabels.Any())
+        {
+            <canvas id="volumeLineChart" style="max-height: 280px; width: 100%;"></canvas>
+        }
+        else
+        {
+            <span class="text-muted small text-center d-block py-5">No historical grievance data available.</span>
+        }
+    </div>
+</div>
+
+<!-- Table: SLA Resolution times -->
+<div class="card shadow-sm border-0 rounded-3 bg-white">
+    <div class="card-header bg-light py-3">
+        <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-table me-2 text-primary"></i> Average Resolution Speeds by Department</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-gms align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Department</th>
+                        <th class="text-center">Resolved Count</th>
+                        <th class="text-center">Average Resolution Time (Days)</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.ResolutionTimes.Any())
+                    {
+                        @foreach (var res in Model.ResolutionTimes)
+                        {
+                            <tr>
+                                <td class="fw-bold text-dark">@res.DepartmentName</td>
+                                <td class="text-center">@res.ResolvedCount</td>
+                                <td class="text-center fw-bold text-primary">@res.AverageResolutionTimeDays days</td>
+                                <td>
+                                    @if (res.AverageResolutionTimeDays <= 3)
+                                    {
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-1.5 rounded">Excellent (&le;3d)</span>
+                                    }
+                                    else if (res.AverageResolutionTimeDays <= 7)
+                                    {
+                                        <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning border-opacity-25 px-3 py-1.5 rounded">Satisfactory (&le;7d)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3 py-1.5 rounded">Breaches SLA (&gt;7d)</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">No resolved grievances exist in history to calculate averages.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        $(document).ready(function () {
+            // 1. Department Bar Chart
+            @if (Model.DepartmentLabels.Any())
+            {
+                <text>
+                var ctxBar = document.getElementById('departmentBarChart').getContext('2d');
+                new Chart(ctxBar, {
+                    type: 'bar',
+                    data: {
+                        labels: @Html.Raw(Json.Serialize(Model.DepartmentLabels)),
+                        datasets: [{
+                            label: 'Number of Grievances',
+                            data: @Html.Raw(Json.Serialize(Model.DepartmentCounts)),
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderColor: 'rgba(30, 64, 175, 1)',
+                            borderWidth: 1.5,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 }
+                            }
+                        }
+                    }
+                });
+                </text>
+            }
+
+            // 2. Status Pie Chart
+            @if (Model.StatusLabels.Any())
+            {
+                <text>
+                var ctxPie = document.getElementById('statusPieChart').getContext('2d');
+                new Chart(ctxPie, {
+                    type: 'pie',
+                    data: {
+                        labels: @Html.Raw(Json.Serialize(Model.StatusLabels)),
+                        datasets: [{
+                            data: @Html.Raw(Json.Serialize(Model.StatusCounts)),
+                            backgroundColor: [
+                                '#3b82f6', // Open - Blue
+                                '#f59e0b', // InProgress - Amber
+                                '#10b981'  // Resolved - Emerald
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+                </text>
+            }
+
+            // 3. Line Chart
+            @if (Model.MonthlyLabels.Any())
+            {
+                <text>
+                var ctxLine = document.getElementById('volumeLineChart').getContext('2d');
+                new Chart(ctxLine, {
+                    type: 'line',
+                    data: {
+                        labels: @Html.Raw(Json.Serialize(Model.MonthlyLabels)),
+                        datasets: [{
+                            label: 'Grievance Volume',
+                            data: @Html.Raw(Json.Serialize(Model.MonthlyCounts)),
+                            fill: true,
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 2.5,
+                            tension: 0.3,
+                            pointBackgroundColor: 'rgba(30, 64, 175, 1)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 }
+                            }
+                        }
+                    }
+                });
+                </text>
+            }
+        });
+    </script>
+}

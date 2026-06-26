@@ -1,0 +1,128 @@
+@model GMS.Web.Models.ViewModels.RegisterViewModel
+
+@{
+    ViewData["Title"] = "Register";
+}
+
+<div class="row justify-content-center py-5">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-lg border-0 rounded-3 overflow-hidden bg-white">
+            <div class="card-header bg-dark text-white text-center py-4">
+                <h4 class="mb-0 fw-bold"><i class="bi bi-person-plus-fill me-2 text-primary"></i> Create GMS Account</h4>
+                <p class="small text-muted mb-0 mt-1">Register as a student or institutional staff member</p>
+            </div>
+            <div class="card-body p-4">
+                <form asp-action="Register" method="post">
+                    @Html.AntiForgeryToken()
+
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3 small"></div>
+
+                    <!-- Role Selection -->
+                    <div class="mb-4 text-center">
+                        <label class="form-label d-block fw-bold mb-3 text-secondary">REGISTER AS</label>
+                        <div class="btn-group w-100" role="group" aria-label="Role selector toggle">
+                            <input type="radio" class="btn-check" name="Role" id="roleStudent" value="Student" checked />
+                            <label class="btn btn-outline-primary py-2.5 fw-semibold" for="roleStudent">
+                                <i class="bi bi-person-workspace me-2"></i> Student
+                            </label>
+
+                            <input type="radio" class="btn-check" name="Role" id="roleStaff" value="Staff" />
+                            <label class="btn btn-outline-primary py-2.5 fw-semibold" for="roleStaff">
+                                <i class="bi bi-briefcase me-2"></i> Academic Staff
+                            </label>
+                        </div>
+                    </div>
+
+                    <hr class="mb-4" />
+
+                    <!-- Common Fields -->
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="form-label fw-semibold">Full Name</label>
+                        <input asp-for="FullName" class="form-control form-control-gms" placeholder="John Doe" />
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label fw-semibold">Email Address</label>
+                        <input asp-for="Email" type="email" class="form-control form-control-gms" placeholder="john.doe@gms.edu.my" />
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+
+                    <!-- Student Specific Wrapper -->
+                    <div id="studentFields" class="mb-3">
+                        <div class="row g-3">
+                            <div class="col-sm-6">
+                                <label asp-for="StudentId" class="form-label fw-semibold">Student ID</label>
+                                <input asp-for="StudentId" class="form-control form-control-gms" placeholder="e.g. NP069687" />
+                                <span asp-validation-for="StudentId" class="text-danger small"></span>
+                            </div>
+                            <div class="col-sm-6">
+                                <label asp-for="Programme" class="form-label fw-semibold">Academic Programme</label>
+                                <input asp-for="Programme" class="form-control form-control-gms" placeholder="e.g. BSc IT (Hons)" />
+                                <span asp-validation-for="Programme" class="text-danger small"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Staff Specific Wrapper -->
+                    <div id="staffFields" class="mb-3" style="display: none;">
+                        <label asp-for="Department" class="form-label fw-semibold">Assigned Department</label>
+                        <select asp-for="Department" asp-items="ViewBag.Departments" class="form-select form-control-gms">
+                            <option value="">-- Select Department --</option>
+                        </select>
+                        <span asp-validation-for="Department" class="text-danger small"></span>
+                    </div>
+
+                    <!-- Passwords -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-6">
+                            <label asp-for="Password" class="form-label fw-semibold">Password</label>
+                            <input asp-for="Password" type="password" class="form-control form-control-gms" placeholder="Min 6 characters" />
+                            <span asp-validation-for="Password" class="text-danger small"></span>
+                        </div>
+                        <div class="col-sm-6">
+                            <label asp-for="ConfirmPassword" class="form-label fw-semibold">Confirm Password</label>
+                            <input asp-for="ConfirmPassword" type="password" class="form-control form-control-gms" placeholder="Re-enter password" />
+                            <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-gms-primary w-100 py-2.5 mb-3">
+                        <i class="bi bi-person-check-fill me-2"></i> Register Account
+                    </button>
+
+                    <div class="text-center">
+                        <span class="text-secondary small">Already have an account? </span>
+                        <a asp-action="Login" class="small fw-semibold text-decoration-none">Access Portal</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+    
+    <script>
+        $(document).ready(function () {
+            // Function to toggle inputs based on role selection
+            function toggleFields() {
+                var selectedRole = $('input[name="Role"]:checked').val();
+                if (selectedRole === 'Student') {
+                    $('#studentFields').slideDown(200);
+                    $('#staffFields').slideUp(200);
+                } else {
+                    $('#studentFields').slideUp(200);
+                    $('#staffFields').slideDown(200);
+                }
+            }
+
+            // Bind trigger events
+            $('input[name="Role"]').change(toggleFields);
+            
+            // Trigger initial loading toggle
+            toggleFields();
+        });
+    </script>
+}

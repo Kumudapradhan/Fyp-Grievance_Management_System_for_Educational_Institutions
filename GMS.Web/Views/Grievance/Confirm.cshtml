@@ -1,0 +1,57 @@
+@{
+    ViewData["Title"] = "Submission Confirmed";
+    Layout = "_StudentLayout";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-10 text-center">
+        <div class="card shadow border-0 rounded-3 p-5 bg-white">
+            <div class="mb-4 text-success">
+                <i class="bi bi-check-circle-fill" style="font-size: 5rem;"></i>
+            </div>
+            
+            <h2 class="fw-extrabold text-dark mb-2">Grievance Submitted Successfully!</h2>
+            <p class="text-secondary mb-4">Your complaint has been logged in the system database and routed for review.</p>
+            
+            <div class="p-4 bg-light rounded-3 d-inline-block border mb-4">
+                <small class="text-muted text-uppercase d-block fw-bold mb-1">Ticket Reference Number</small>
+                <div class="d-flex align-items-center justify-content-center">
+                    <span id="ticketNum" class="fs-2 fw-extrabold text-primary me-3">@ViewBag.TicketNumber</span>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="copyTicket()">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+                </div>
+            </div>
+            
+            <div class="alert alert-info text-start max-width-600 mx-auto border-0 bg-info bg-opacity-10 mb-4">
+                <h6 class="fw-bold text-info-emphasis mb-1"><i class="bi bi-info-circle-fill me-2"></i> What happens next?</h6>
+                <ol class="small text-secondary mb-0 ps-3">
+                    <li>An automated email receipt has been sent to your registered session address.</li>
+                    <li>The default department staff has been notified of the task assignment.</li>
+                    <li>You will receive automated emails whenever there are status modifications or resolution updates.</li>
+                    <li class="fw-bold mt-1 text-danger-emphasis">If submitted anonymously, you MUST save this ticket number. You will not see this ticket listed in your login dashboard history for privacy.</li>
+                </ol>
+            </div>
+            
+            <hr class="my-4" />
+            
+            <div class="d-flex justify-content-center gap-3">
+                <a asp-action="Index" class="btn btn-primary btn-gms-primary px-4 py-2">
+                    <i class="bi bi-house-door-fill me-2"></i> Go to Dashboard
+                </a>
+                <a asp-action="Submit" class="btn btn-outline-secondary px-4 py-2">
+                    File Another Complaint
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function copyTicket() {
+        var copyText = document.getElementById("ticketNum").innerText;
+        navigator.clipboard.writeText(copyText).then(function() {
+            alert("Ticket number copied to clipboard: " + copyText);
+        });
+    }
+</script>

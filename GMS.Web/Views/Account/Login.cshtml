@@ -1,0 +1,59 @@
+@model GMS.Web.Models.ViewModels.LoginViewModel
+
+@{
+    ViewData["Title"] = "Log In";
+}
+
+<div class="row justify-content-center py-5">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-lg border-0 rounded-3 overflow-hidden bg-white">
+            <div class="card-header bg-dark text-white text-center py-4">
+                <h4 class="mb-0 fw-bold"><i class="bi bi-shield-lock-fill me-2 text-primary"></i> GMS Access Portal</h4>
+                <p class="small text-muted mb-0 mt-1">Sign in with your registered credentials</p>
+            </div>
+            <div class="card-body p-4">
+                <form asp-action="Login" method="post">
+                    @Html.AntiForgeryToken()
+                    
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3 small"></div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label fw-semibold">Email Address</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-envelope"></i></span>
+                            <input asp-for="Email" class="form-control form-control-gms" placeholder="name@gms.edu.my" />
+                        </div>
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label fw-semibold">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-key"></i></span>
+                            <input asp-for="Password" type="password" class="form-control form-control-gms" placeholder="••••••••" />
+                        </div>
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-4 form-check">
+                        <input asp-for="RememberMe" class="form-check-input" />
+                        <label asp-for="RememberMe" class="form-check-label text-secondary small">Remember my session</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-gms-primary w-100 py-2.5 mb-3">
+                        <i class="bi bi-box-arrow-in-right me-2"></i> Log In
+                    </button>
+                    
+                    <div class="text-center">
+                        <span class="text-secondary small">New user? </span>
+                        <a asp-action="Register" class="small fw-semibold text-decoration-none">Register Account</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+}

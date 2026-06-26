@@ -1,0 +1,37 @@
+@{
+    ViewData["Title"] = "Track Ticket";
+}
+
+<div class="row justify-content-center py-5">
+    <div class="col-md-7 col-lg-6">
+        <div class="card shadow-lg border-0 rounded-3 overflow-hidden bg-white">
+            <div class="card-header bg-dark text-white text-center py-4">
+                <h4 class="mb-0 fw-bold"><i class="bi bi-search me-2 text-primary"></i> Track Grievance Status</h4>
+                <p class="small text-muted mb-0 mt-1">Review live resolution progress using your ticket reference</p>
+            </div>
+            
+            <div class="card-body p-4 text-center">
+                <p class="text-secondary small mb-4">
+                    Enter the GMS ticket number (e.g., <strong>GMS-2026-00001</strong>) provided on confirmation pages or automated receipt emails.
+                </p>
+
+                @if (ViewBag.Error != null)
+                {
+                    <div class="alert alert-danger border-0 bg-danger bg-opacity-10 text-danger-emphasis mb-3 py-2 text-start">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i> @ViewBag.Error
+                    </div>
+                }
+
+                <form asp-action="Track" method="get">
+                    <div class="mb-4">
+                        <input type="text" name="ticketNumber" class="form-control form-control-lg form-control-gms text-center fw-bold" placeholder="GMS-YYYY-XXXXX" required />
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-gms-primary w-100 py-2.5">
+                        <i class="bi bi-search me-1"></i> Check Ticket Status
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

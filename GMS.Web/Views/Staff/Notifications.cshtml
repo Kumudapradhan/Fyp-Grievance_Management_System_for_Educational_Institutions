@@ -1,0 +1,90 @@
+@model GMS.Web.Models.ViewModels.StaffNotificationsViewModel
+
+@{
+    ViewData["Title"] = "Notifications — Staff Portal";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+<div class="card shadow-sm border-0 rounded-3 bg-white p-4 mb-4">
+    <div class="d-flex align-items-center">
+        <div class="p-3 bg-success bg-opacity-10 rounded-3 me-3 text-success fs-1">
+            <i class="bi bi-bell-fill"></i>
+        </div>
+        <div>
+            <h3 class="fw-bold mb-1 text-dark">Staff Notifications Inbox</h3>
+            <p class="text-secondary mb-0">Track assignments, status updates, and SLA alerts relevant to your account.</p>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 rounded-3 bg-white">
+    <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-envelope-open-fill me-2 text-primary"></i> Notification History</h5>
+        <span class="badge bg-primary">Total: @Model.Notifications.Count</span>
+    </div>
+    <div class="card-body p-0">
+        @if (Model.Notifications.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover table-gms align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;"></th>
+                            <th>Ticket</th>
+                            <th>Notification Details</th>
+                            <th>Received At</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var note in Model.Notifications)
+                        {
+                            <tr>
+                                <td class="text-center">
+                                    @if (note.NotificationType == GMS.Web.Models.Entities.NotificationType.Assignment)
+                                    {
+                                        <i class="bi bi-person-fill-add text-primary fs-5"></i>
+                                    }
+                                    else if (note.NotificationType == GMS.Web.Models.Entities.NotificationType.Overdue)
+                                    {
+                                        <i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i>
+                                    }
+                                    else if (note.NotificationType == GMS.Web.Models.Entities.NotificationType.RepetitiveFlag)
+                                    {
+                                        <i class="bi bi-flag-fill text-warning fs-5"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-bell-fill text-secondary fs-5"></i>
+                                    }
+                                </td>
+                                <td>
+                                    <a asp-action="Detail" asp-route-id="@note.GrievanceId" class="fw-bold text-primary text-decoration-none">
+                                        @note.Grievance?.TicketNumber
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="d-block text-dark fw-medium">@note.Message</span>
+                                </td>
+                                <td class="small text-secondary">
+                                    @note.SentAt.ToString("g")
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">@note.NotificationType.ToString()</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-bell-slash text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 fw-bold text-secondary">No notifications yet</h5>
+                <p class="text-secondary small mb-0">You're all caught up! New grievance alerts will appear here.</p>
+            </div>
+        }
+    </div>
+</div>

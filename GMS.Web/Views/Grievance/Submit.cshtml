@@ -1,0 +1,137 @@
+@model GMS.Web.Models.ViewModels.GrievanceSubmitViewModel
+
+@{
+    ViewData["Title"] = "File New Grievance";
+    Layout = "_StudentLayout";
+}
+
+<div class="card shadow-sm border-0 rounded-3 bg-white">
+    <div class="card-header bg-primary text-white py-3">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-file-earmark-plus-fill me-2"></i> Submit New Grievance</h5>
+    </div>
+    <div class="card-body p-4">
+        <form asp-action="Submit" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-4 small"></div>
+
+            <div class="mb-3">
+                <label asp-for="Title" class="form-label fw-semibold"></label>
+                <input asp-for="Title" class="form-control form-control-gms" placeholder="Brief subject (e.g. Wi-Fi down in blocks)" />
+                <span asp-validation-for="Title" class="text-danger small"></span>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-sm-6">
+                    <label asp-for="CategoryId" class="form-label fw-semibold"></label>
+                    <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-select form-control-gms" id="categoryDropdown">
+                        <option value="">-- Choose Category --</option>
+                    </select>
+                    <span asp-validation-for="CategoryId" class="text-danger small"></span>
+                </div>
+                
+                <!-- Dynamic routing display (FR-03, FR-06) -->
+                <div class="col-sm-6">
+                    <label class="form-label fw-semibold">Auto-Routed Department</label>
+                    <div class="p-2 border rounded-3 bg-light d-flex align-items-center" style="min-height: 43px;">
+                        <i class="bi bi-info-circle text-primary me-2 fs-5"></i>
+                        <span id="routingInfo" class="fw-medium text-secondary">Please select a category</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="IncidentDate" class="form-label fw-semibold"></label>
+                <input asp-for="IncidentDate" type="date" class="form-control form-control-gms" max="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                <span asp-validation-for="IncidentDate" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label fw-semibold"></label>
+                <textarea asp-for="Description" class="form-control form-control-gms" id="descTextArea" rows="6" placeholder="Provide complete facts, locations, and details of your grievance... (minimum 50 characters)"></textarea>
+                <div class="d-flex justify-content-between mt-1">
+                    <span asp-validation-for="Description" class="text-danger small"></span>
+                    <span class="small text-muted" id="charCounter">0 / 50 characters minimum</span>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="EvidenceFiles" class="form-label fw-semibold"></label>
+                <input asp-for="EvidenceFiles" type="file" multiple class="form-control form-control-gms" />
+                <small class="form-text text-secondary d-block mt-1">
+                    <i class="bi bi-info-circle me-1"></i> You can select multiple documents or images. Allowed types: PDF, PNG, JPG, JPEG, DOCX. Max size: 5MB per file.
+                </small>
+            </div>
+
+            <hr class="my-4" />
+
+            <!-- Anonymity Option (FR-05) -->
+            <div class="p-3 border rounded-3 border-warning bg-warning bg-opacity-10 mb-4">
+                <div class="form-check">
+                    <input asp-for="IsAnonymous" class="form-check-input" id="anonymousCheckbox" />
+                    <label class="form-check-label fw-bold text-warning-emphasis" for="anonymousCheckbox">
+                        Submit Anonymously
+                    </label>
+                </div>
+                <p class="text-secondary small mb-0 mt-1">
+                    By checking this, your student ID and name will <strong>NOT</strong> be saved alongside the ticket. Administrators will only see the ticket details, not your identity. Note that anonymous tickets cannot be tracked in your student dashboard history after logging out; you must save the ticket reference to track updates manually.
+                </p>
+            </div>
+
+            <div class="d-flex gap-3">
+                <button type="submit" class="btn btn-primary btn-gms-primary px-4 py-2.5">
+                    <i class="bi bi-send-fill me-2"></i> Submit Grievance
+                </button>
+                <a asp-action="Index" class="btn btn-gms-secondary px-4 py-2.5">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+
+    <script>
+        $(document).ready(function () {
+            // 1. AJAX for dynamic department selection (FR-03)
+            $('#categoryDropdown').change(function () {
+                var categoryId = $(this).val();
+                if (categoryId) {
+                    $.ajax({
+                        url: '@Url.Action("GetDepartmentForCategory", "Grievance")',
+                        data: { categoryId: categoryId },
+                        success: function (data) {
+                            if (data.success) {
+                                $('#routingInfo').html('<strong>' + data.departmentName + '</strong>');
+                            } else {
+                                $('#routingInfo').text('General Administration');
+                            }
+                        },
+                        error: function () {
+                            $('#routingInfo').text('General Administration');
+                        }
+                    });
+                } else {
+                    $('#routingInfo').text('Please select a category');
+                }
+            });
+
+            // 2. Character counter for description min-length checks
+            $('#descTextArea').on('input', function () {
+                var len = $(this).val().length;
+                $('#charCounter').text(len + ' / 50 characters minimum');
+                if (len >= 50) {
+                    $('#charCounter').removeClass('text-muted').addClass('text-success fw-semibold');
+                } else {
+                    $('#charCounter').removeClass('text-success fw-semibold').addClass('text-muted');
+                }
+            });
+            
+            // Initial call if form fails validation and reloads
+            $('#descTextArea').trigger('input');
+            $('#categoryDropdown').trigger('change');
+        });
+    </script>
+}

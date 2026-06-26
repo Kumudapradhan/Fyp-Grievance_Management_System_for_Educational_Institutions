@@ -1,0 +1,122 @@
+@model GMS.Web.Models.ViewModels.StudentDashboardViewModel
+
+@{
+    ViewData["Title"] = "Student Dashboard";
+    Layout = "_StudentLayout";
+}
+
+<!-- Welcome Section -->
+<div class="card shadow-sm border-0 rounded-3 p-4 mb-4 bg-white">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <h3 class="fw-bold mb-1 text-dark">Welcome back, @Model.StudentName!</h3>
+            <p class="text-secondary mb-0">Student ID: <strong class="text-primary">@Model.StudentIdString</strong> | GMS Ticket Tracking Portal</p>
+        </div>
+        <div>
+            <a asp-action="Submit" class="btn btn-primary btn-gms-primary btn-lg shadow-sm">
+                <i class="bi bi-plus-circle-fill me-2"></i> Submit New Grievance
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Notifications Center -->
+@if (Model.Notifications.Any())
+{
+    <div class="card shadow-sm border-0 rounded-3 mb-4 bg-white">
+        <div class="card-header bg-warning bg-opacity-10 border-0 py-3">
+            <h5 class="card-title text-warning-emphasis mb-0 fw-bold"><i class="bi bi-bell-fill me-2"></i> Unread Notifications</h5>
+        </div>
+        <div class="card-body p-0">
+            <ul class="list-group list-group-flush">
+                @foreach (var notification in Model.Notifications)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-info-circle-fill text-warning fs-5 me-3"></i>
+                            <div>
+                                <span class="d-block text-dark fw-medium">@notification.Message</span>
+                                <small class="text-muted">@notification.SentAt.ToString("g")</small>
+                            </div>
+                        </div>
+                        <form asp-action="MarkNotificationRead" method="post" class="ms-3">
+                            <input type="hidden" name="id" value="@notification.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-secondary border-0">
+                                <i class="bi bi-check-lg me-1"></i> Dismiss
+                            </button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+
+<!-- Grievance Table -->
+<div class="card shadow-sm border-0 rounded-3 bg-white">
+    <div class="card-header bg-light py-3 d-flex align-items-center">
+        <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-list-task me-2 text-primary"></i> Grievance History</h5>
+    </div>
+    <div class="card-body p-0">
+        @if (Model.OwnGrievances.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover table-gms align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Ticket</th>
+                            <th>Title</th>
+                            <th>Category</th>
+                            <th>Assigned Department</th>
+                            <th>Status</th>
+                            <th>Submitted At</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.OwnGrievances)
+                        {
+                            <tr>
+                                <td class="fw-bold text-primary">@item.TicketNumber</td>
+                                <td>@item.Title</td>
+                                <td><span class="badge bg-light text-dark border">@item.Category?.Name</span></td>
+                                <td>@item.Department?.Name</td>
+                                <td>
+                                    @if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.Open)
+                                    {
+                                        <span class="badge-status badge-status-open">Open</span>
+                                    }
+                                    else if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.InProgress)
+                                    {
+                                        <span class="badge-status badge-status-progress">In Progress</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge-status badge-status-resolved">Resolved</span>
+                                    }
+                                </td>
+                                <td>@item.SubmittedAt.ToString("d")</td>
+                                <td class="text-end">
+                                    <a asp-action="Detail" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary px-3 fw-semibold">
+                                        <i class="bi bi-eye-fill me-1"></i> Track
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-chat-square-text text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 fw-bold text-secondary">No grievances submitted yet</h5>
+                <p class="text-secondary small mb-4">Submit your first grievance to begin tracking its resolution.</p>
+                <a asp-action="Submit" class="btn btn-primary btn-gms-primary">
+                    <i class="bi bi-plus-circle me-1"></i> File Grievance
+                </a>
+            </div>
+        }
+    </div>
+</div>

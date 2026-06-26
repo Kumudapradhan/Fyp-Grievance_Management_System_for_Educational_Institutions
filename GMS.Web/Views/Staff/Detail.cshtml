@@ -1,0 +1,292 @@
+@model GMS.Web.Models.ViewModels.GrievanceDetailViewModel
+
+@{
+    ViewData["Title"] = $"Review {Model.Grievance.TicketNumber}";
+    Layout = "~/Views/Shared/_StaffLayout.cshtml";
+}
+
+<div class="mb-3">
+    <a asp-action="Index" class="btn btn-sm btn-gms-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Back to Queue
+    </a>
+</div>
+
+<!-- Header card -->
+<div class="card shadow-sm border-0 rounded-3 mb-4 bg-white">
+    <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+        <div>
+            <span class="badge bg-primary mb-1">DEPARTMENT REVIEW</span>
+            <h4 class="mb-0 fw-bold">@Model.Grievance.TicketNumber</h4>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            @if (Model.Grievance.Priority == GMS.Web.Models.Entities.GrievancePriority.High)
+            {
+                <span class="badge bg-danger text-white fs-6">HIGH PRIORITY</span>
+            }
+            @if (Model.Grievance.IsOverdue && Model.Grievance.Status != GMS.Web.Models.Entities.GrievanceStatus.Resolved)
+            {
+                <span class="badge bg-warning text-dark fs-6">OVERDUE</span>
+            }
+            @if (Model.Grievance.Status == GMS.Web.Models.Entities.GrievanceStatus.Open)
+            {
+                <span class="badge-status badge-status-open fs-6">Open</span>
+            }
+            else if (Model.Grievance.Status == GMS.Web.Models.Entities.GrievanceStatus.InProgress)
+            {
+                <span class="badge-status badge-status-progress fs-6">InProgress</span>
+            }
+            else
+            {
+                <span class="badge-status badge-status-resolved fs-6">Resolved</span>
+            }
+        </div>
+    </div>
+    
+    <div class="card-body p-4">
+        <!-- Submitter details (Anonymity logic FR-05) -->
+        <div class="p-3 bg-light rounded-3 border mb-4">
+            <h6 class="fw-bold text-secondary mb-2"><i class="bi bi-person-fill me-1"></i> Submitter Details</h6>
+            @if (Model.Grievance.IsAnonymous)
+            {
+                <div class="text-danger fw-bold fs-6">
+                    <i class="bi bi-eye-slash-fill me-2"></i> Anonymous Student Filing
+                </div>
+                <small class="text-muted d-block mt-1">This grievance was submitted anonymously. Student profile metadata is hidden to maintain privacy.</small>
+            }
+            else
+            {
+                <div class="row g-2">
+                    <div class="col-sm-4">
+                        <span class="text-muted small d-block">NAME</span>
+                        <strong class="text-dark">@Model.Grievance.Student?.FullName</strong>
+                    </div>
+                    <div class="col-sm-4">
+                        <span class="text-muted small d-block">STUDENT ID</span>
+                        <strong class="text-dark">@Model.Grievance.Student?.StudentId</strong>
+                    </div>
+                    <div class="col-sm-4">
+                        <span class="text-muted small d-block">EMAIL</span>
+                        <strong class="text-dark">@Model.Grievance.Student?.Email</strong>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-4">
+                <span class="text-muted small d-block">CATEGORY</span>
+                <span class="fw-semibold">@Model.Grievance.Category?.Name</span>
+            </div>
+            <div class="col-6 col-md-4">
+                <span class="text-muted small d-block">INCIDENT DATE</span>
+                <span class="fw-semibold">@Model.Grievance.IncidentDate.ToString("D")</span>
+            </div>
+            <div class="col-6 col-md-4">
+                <span class="text-muted small d-block">SUBMITTED DATE</span>
+                <span class="fw-semibold">@Model.Grievance.SubmittedAt.ToString("g")</span>
+            </div>
+        </div>
+
+        <hr class="my-4" />
+
+        <div class="mb-4">
+            <h5 class="fw-bold mb-2 text-dark">Subject Title</h5>
+            <p class="fs-5 fw-semibold text-dark">@Model.Grievance.Title</p>
+        </div>
+
+        <div class="mb-4">
+            <h5 class="fw-bold mb-2 text-dark">Description details</h5>
+            <div class="p-3 bg-light rounded border text-secondary" style="white-space: pre-wrap; line-height: 1.6;">@Model.Grievance.Description</div>
+        </div>
+
+        <!-- Evidence attachments -->
+        <div class="mb-4">
+            <h5 class="fw-bold mb-2 text-dark"><i class="bi bi-paperclip me-1"></i> Uploaded Evidence</h5>
+            @if (Model.Grievance.Attachments.Any())
+            {
+                <div class="row g-2">
+                    @foreach (var file in Model.Grievance.Attachments)
+                    {
+                        <div class="col-md-6">
+                            <div class="p-2 border rounded-3 d-flex justify-content-between align-items-center bg-light">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-file-earmark-text text-primary fs-4 me-2"></i>
+                                    <div>
+                                        <span class="d-block text-dark fw-medium text-truncate" style="max-width: 200px;" title="@file.FileName">@file.FileName</span>
+                                        <small class="text-secondary">@Math.Round((double)file.FileSize / 1024, 1) KB</small>
+                                    </div>
+                                </div>
+                                <a asp-controller="Grievance" asp-action="DownloadAttachment" asp-route-id="@file.Id" class="btn btn-sm btn-primary px-3">
+                                    <i class="bi bi-download"></i> Download
+                                </a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="small text-secondary italic mb-0">No files uploaded for this ticket.</p>
+            }
+        </div>
+
+        @if (Model.Grievance.Status == GMS.Web.Models.Entities.GrievanceStatus.Resolved)
+        {
+            <div class="p-3 border border-success bg-success bg-opacity-10 rounded-3 mb-4">
+                <h5 class="fw-bold text-success-emphasis mb-1"><i class="bi bi-check-circle-fill me-2"></i> Resolution Statement</h5>
+                <p class="text-secondary mb-0" style="white-space: pre-wrap;">@Model.Grievance.ResolutionNotes</p>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Staff Action Box -->
+<div class="row g-4 mb-4">
+    <div class="col-md-7">
+        <div class="card shadow-sm border-0 rounded-3 bg-white">
+            <div class="card-header bg-light py-3">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-arrow-repeat me-2 text-primary"></i> Process Action</h6>
+            </div>
+            <div class="card-body p-4">
+                @if (Model.Grievance.Status != GMS.Web.Models.Entities.GrievanceStatus.Resolved)
+                {
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-success w-100 py-2.5 fw-bold" data-bs-toggle="modal" data-bs-target="#resolveModal">
+                            <i class="bi bi-check-circle-fill me-2"></i> Mark as Resolved ✓
+                        </button>
+                    </div>
+                    <hr class="my-3 text-muted" />
+                }
+                
+                <form asp-action="UpdateStatus" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Grievance.Id" />
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Grievance Status</label>
+                        <select asp-for="NewStatus" class="form-select form-control-gms" id="statusDropdown">
+                            @foreach (var val in Enum.GetValues(typeof(GMS.Web.Models.Entities.GrievanceStatus)))
+                            {
+                                <option value="@val">@val.ToString()</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Action / Resolution Statement</label>
+                        <textarea asp-for="StatusNotes" class="form-control form-control-gms" rows="4" id="statusNotesBox" placeholder="Provide notes or resolution details... (Required if status is set to Resolved)"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-gms-primary w-100 py-2">
+                        Update Ticket
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right-hand timeline reference -->
+    <div class="col-md-5">
+        <div class="card shadow-sm border-0 rounded-3 bg-white h-100">
+            <div class="card-header bg-light py-3">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-2 text-primary"></i> History Log</h6>
+            </div>
+            <div class="card-body p-4">
+                @if (Model.Grievance.StatusHistory.Any())
+                {
+                    <div class="position-relative border-start border-2 border-light ps-3">
+                        @foreach (var history in Model.Grievance.StatusHistory.OrderByDescending(sh => sh.ChangedAt))
+                        {
+                            <div class="mb-3 position-relative">
+                                <div class="position-absolute" style="left: -25px; top: 0px; background: white; padding: 2px;">
+                                    @if (history.NewStatus == GMS.Web.Models.Entities.GrievanceStatus.Resolved)
+                                    {
+                                        <i class="bi bi-check-circle-fill text-success"></i>
+                                    }
+                                    else if (history.NewStatus == GMS.Web.Models.Entities.GrievanceStatus.InProgress)
+                                    {
+                                        <i class="bi bi-hourglass-split text-warning"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-circle-fill text-primary"></i>
+                                    }
+                                </div>
+                                <div class="small">
+                                    <span class="text-muted d-block" style="font-size: 0.75rem;">@history.ChangedAt.ToString("g")</span>
+                                    <strong class="text-dark">Status: @history.NewStatus.ToString()</strong>
+                                    @if (!string.IsNullOrEmpty(history.Notes))
+                                    {
+                                        <p class="text-secondary small mt-0.5 mb-0 italic">"@history.Notes"</p>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="small text-secondary italic mb-0">No history logged yet.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.Grievance.Status != GMS.Web.Models.Entities.GrievanceStatus.Resolved)
+{
+    <!-- Resolve Confirmation Modal -->
+    <div class="modal fade" id="resolveModal" tabindex="-1" aria-labelledby="resolveModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold" id="resolveModalLabel">
+                        <i class="bi bi-check-circle-fill me-2"></i> Mark Grievance as Resolved
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form asp-action="MarkResolved" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="grievanceId" value="@Model.Grievance.Id" />
+                    
+                    <div class="modal-body p-4">
+                        <p class="text-dark fw-medium">Are you sure you want to mark this grievance as resolved?</p>
+                        <p class="text-secondary small">Please enter your resolution statement below. This notes field is required and will be shared with the student (unless filed anonymously).</p>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-dark">Resolution Notes / Statement</label>
+                            <textarea name="resolutionNotes" class="form-control form-control-gms" rows="4" required placeholder="Describe how the grievance was resolved..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-footer bg-light border-0">
+                        <button type="button" class="btn btn-secondary btn-gms-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success bg-success text-white px-4 fw-bold">
+                            Resolve Ticket
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            function checkNotesRequired() {
+                var selected = $('#statusDropdown').val();
+                if (selected === 'Resolved') {
+                    $('#statusNotesBox').attr('required', 'required');
+                    $('#statusNotesBox').attr('placeholder', 'Please provide detailed resolution notes for the student... (REQUIRED)');
+                } else {
+                    $('#statusNotesBox').removeAttr('required');
+                    $('#statusNotesBox').attr('placeholder', 'Provide notes or resolution details...');
+                }
+            }
+
+            $('#statusDropdown').change(checkNotesRequired);
+            checkNotesRequired();
+        });
+    </script>
+}

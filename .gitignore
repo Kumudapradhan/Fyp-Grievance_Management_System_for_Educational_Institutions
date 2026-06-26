@@ -1,0 +1,29 @@
+## Core dotnet / VS build folders
+[Bb]in/
+[Oo]bj/
+[Log]/
+[Logs]/
+
+## Visual Studio cache / settings
+.vs/
+*.user
+*.suo
+*.userprefs
+*.sln.docstates
+
+## NuGet
+project.lock.json
+project.assets.json
+*.nuget.props
+*.nuget.targets
+
+## Rider / Resharper
+.idea/
+*.sln.iml
+
+## VS Code
+.vscode/
+
+## OS-specific files
+.DS_Store
+Thumbs.db

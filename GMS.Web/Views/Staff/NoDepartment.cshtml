@@ -1,0 +1,33 @@
+@{
+    ViewData["Title"] = "Department Assignment Required";
+}
+
+<div class="row justify-content-center py-5">
+    <div class="col-md-7 text-center">
+        <div class="card shadow border-0 rounded-3 p-5 bg-white">
+            <div class="mb-4 text-warning">
+                <i class="bi bi-exclamation-triangle-fill" style="font-size: 5rem;"></i>
+            </div>
+            <h2 class="fw-bold text-dark mb-3">No Assigned Department</h2>
+            <p class="lead text-secondary mb-4">
+                Your account is currently registered under the Staff role, but you have not yet been assigned as an officer to any department.
+            </p>
+            <div class="alert alert-warning text-start border-0 bg-warning bg-opacity-10 mb-4 small text-secondary">
+                <strong>Why am I seeing this?</strong><br/>
+                When academic staff users register, an Administrator must link their user account to a specific department (e.g., IT Support, Finance) via the database or administration settings. Once linked, you will gain access to your department's ticket queues.
+            </div>
+            <hr class="my-4" />
+            <div class="d-flex justify-content-center gap-3">
+                <a href="/" class="btn btn-primary btn-gms-primary px-4">
+                    <i class="bi bi-house-door-fill me-2"></i> Go to Homepage
+                </a>
+                <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-danger px-4">
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
