@@ -215,6 +215,58 @@
     </div>
 </div>
 
+<!-- Assign Staff Panel (Feature 4) -->
+<div class="card shadow-sm border-0 rounded-3 bg-white mb-4">
+    <div class="card-header bg-light py-3">
+        <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-person-fill-gear me-2 text-primary"></i> Assign to Specific Staff Member</h6>
+    </div>
+    <div class="card-body p-4">
+        @if (Model.Grievance.AssignedStaffUserId != null)
+        {
+            <div class="alert alert-info border-0 bg-info bg-opacity-10 text-dark small mb-3">
+                <i class="bi bi-info-circle-fill me-2"></i> Currently assigned to: <strong>@Model.Grievance.AssignedStaffUser?.FullName</strong> (@(Model.Grievance.AssignedStaffUser?.Department ?? "No Department"))
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-warning border-0 bg-warning bg-opacity-10 text-dark small mb-3">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> This grievance has not been assigned to a specific staff member yet. It is currently unassigned.
+            </div>
+        }
+        
+        <form asp-action="AssignStaff" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="grievanceId" value="@Model.Grievance.Id" />
+            
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Select Staff Member</label>
+                        <select name="staffUserId" class="form-select form-control-gms" required>
+                            <option value="">-- Choose Staff Officer --</option>
+                            @foreach (var staff in Model.AllStaffUsers)
+                            {
+                                var isSelected = Model.Grievance.AssignedStaffUserId == staff.Id ? "selected" : "";
+                                <!option value="@staff.Id" @isSelected>@staff.FullName (@(staff.Department ?? "No Department") - @staff.Email)</!option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Note for staff member (optional)</label>
+                        <textarea name="assignmentNote" class="form-control form-control-gms" rows="2" placeholder="Provide context or instructions for this assignment..."></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-gms-primary fw-semibold px-4">
+                Assign Staff
+            </button>
+        </form>
+    </div>
+</div>
+
 <!-- History Log -->
 <div class="card shadow-sm border-0 rounded-3 bg-white">
     <div class="card-header bg-light py-3">

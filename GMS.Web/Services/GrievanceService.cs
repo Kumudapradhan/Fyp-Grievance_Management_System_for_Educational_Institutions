@@ -229,6 +229,7 @@ GMS Admin Portal";
                 .Include(g => g.Category)
                 .Include(g => g.Department)
                 .Include(g => g.Student)
+                .Include(g => g.AssignedStaffUser)
                 .Include(g => g.Attachments)
                 .Include(g => g.StatusHistory)
                     .ThenInclude(sh => sh.ChangedByUser)

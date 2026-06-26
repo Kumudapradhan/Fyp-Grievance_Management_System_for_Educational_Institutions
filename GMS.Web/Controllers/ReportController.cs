@@ -21,76 +21,83 @@ namespace GMS.Web.Controllers
             _context = context;
         }
 
-        // Analytics report view (FR-18)
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            var model = new ReportViewModel();
+            var model = new ReportViewModel
+            {
+                TotalSubmitted = await _context.Grievances.CountAsync(),
+                TotalResolved = await _context.Grievances.CountAsync(g => g.Status == GrievanceStatus.Resolved),
+                TotalOverdue = await _context.Grievances.CountAsync(g => g.IsOverdue && g.Status != GrievanceStatus.Resolved),
+                TotalHighPriority = await _context.Grievances.CountAsync(g => g.Priority == GrievancePriority.High && g.Status != GrievanceStatus.Resolved)
+            };
 
-            // 1. Bar Chart: Grievances by Department (current month)
-            var startOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
-            var deptGrievances = await _context.Grievances
+            // 1. Grievances by Department
+            model.GrievancesByDepartment = await _context.Grievances
                 .Include(g => g.Department)
-                .Where(g => g.SubmittedAt >= startOfMonth)
                 .GroupBy(g => g.Department.Name)
-                .Select(g => new { DeptName = g.Key, Count = g.Count() })
+                .Select(g => new ChartDataPoint
+                {
+                    Label = g.Key ?? "Unassigned",
+                    Value = g.Count()
+                })
                 .ToListAsync();
 
-            model.DepartmentLabels = deptGrievances.Select(d => d.DeptName).ToList();
-            model.DepartmentCounts = deptGrievances.Select(d => d.Count).ToList();
+            // 2. Grievances by Status
+            model.GrievancesByStatus = await _context.Grievances
+                .GroupBy(g => g.Status)
+                .Select(g => new ChartDataPoint
+                {
+                    Label = g.Key.ToString(),
+                    Value = g.Count()
+                })
+                .ToListAsync();
 
-            // 2. Line Chart: Volume over 6 months
+            // 3. Grievances by Category
+            model.GrievancesByCategory = await _context.Grievances
+                .Include(g => g.Category)
+                .GroupBy(g => g.Category.Name)
+                .Select(g => new ChartDataPoint
+                {
+                    Label = g.Key ?? "Uncategorized",
+                    Value = g.Count()
+                })
+                .ToListAsync();
+
+            // 4. Monthly Volume (last 6 months)
             var sixMonthsAgo = DateTime.UtcNow.AddMonths(-5);
             var startOfSixMonthsAgo = new DateTime(sixMonthsAgo.Year, sixMonthsAgo.Month, 1);
-            
             var monthlyGrievances = await _context.Grievances
                 .Where(g => g.SubmittedAt >= startOfSixMonthsAgo)
                 .ToListAsync();
 
-            var monthlyGroups = monthlyGrievances
-                .GroupBy(g => new { Year = g.SubmittedAt.Year, Month = g.SubmittedAt.Month })
-                .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
-                .Select(g => new
+            for (int i = 5; i >= 0; i--)
+            {
+                var date = DateTime.UtcNow.AddMonths(-i);
+                var label = $"{System.Globalization.CultureInfo.InvariantCulture.DateTimeFormat.GetAbbreviatedMonthName(date.Month)} {date.Year}";
+                var count = monthlyGrievances.Count(g => g.SubmittedAt.Year == date.Year && g.SubmittedAt.Month == date.Month);
+                model.MonthlyVolume.Add(new ChartDataPoint
                 {
-                    Label = $"{System.Globalization.CultureInfo.InvariantCulture.DateTimeFormat.GetAbbreviatedMonthName(g.Key.Month)} {g.Key.Year}",
-                    Count = g.Count()
-                }).ToList();
+                    Label = label,
+                    Value = count
+                });
+            }
 
-            model.MonthlyLabels = monthlyGroups.Select(m => m.Label).ToList();
-            model.MonthlyCounts = monthlyGroups.Select(m => m.Count).ToList();
-
-            // 3. Pie Chart: Status split
-            var statusGroups = await _context.Grievances
-                .GroupBy(g => g.Status)
-                .Select(g => new { Status = g.Key, Count = g.Count() })
-                .ToListAsync();
-
-            model.StatusLabels = statusGroups.Select(s => s.Status.ToString()).ToList();
-            model.StatusCounts = statusGroups.Select(s => s.Count).ToList();
-
-            // 4. Table: Average resolution time per department
+            // 5. Average Resolution Days by Department
             var resolvedGrievances = await _context.Grievances
                 .Include(g => g.Department)
                 .Where(g => g.Status == GrievanceStatus.Resolved)
                 .ToListAsync();
 
-            var resolutionTimes = resolvedGrievances
+            model.AvgResolutionByDept = resolvedGrievances
                 .GroupBy(g => g.Department?.Name ?? "Unassigned")
-                .Select(g =>
+                .Select(g => new ChartDataPoint
                 {
-                    var totalDays = g.Sum(x => (x.LastUpdatedAt - x.SubmittedAt).TotalDays);
-                    var avgDays = g.Any() ? (totalDays / g.Count()) : 0;
-                    return new DeptResolutionTime
-                    {
-                        DepartmentName = g.Key,
-                        AverageResolutionTimeDays = Math.Round(avgDays, 2),
-                        ResolvedCount = g.Count()
-                    };
+                    Label = g.Key,
+                    Value = g.Any() ? Math.Round(g.Average(x => (x.LastUpdatedAt - x.SubmittedAt).TotalDays), 2) : 0
                 })
-                .OrderBy(r => r.DepartmentName)
+                .OrderBy(r => r.Label)
                 .ToList();
-
-            model.ResolutionTimes = resolutionTimes;
 
             return View(model);
         }

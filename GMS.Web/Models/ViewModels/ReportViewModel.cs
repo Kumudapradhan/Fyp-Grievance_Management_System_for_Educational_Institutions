@@ -2,28 +2,22 @@ using System.Collections.Generic;
 
 namespace GMS.Web.Models.ViewModels
 {
-    public class DeptResolutionTime
-    {
-        public string DepartmentName { get; set; } = string.Empty;
-        public double AverageResolutionTimeDays { get; set; }
-        public int ResolvedCount { get; set; }
-    }
-
     public class ReportViewModel
     {
-        // Bar Chart: Grievances by Department
-        public List<string> DepartmentLabels { get; set; } = new List<string>();
-        public List<int> DepartmentCounts { get; set; } = new List<int>();
+        public int TotalSubmitted { get; set; }
+        public int TotalResolved { get; set; }
+        public int TotalOverdue { get; set; }
+        public int TotalHighPriority { get; set; }
+        public List<ChartDataPoint> GrievancesByDepartment { get; set; } = new();
+        public List<ChartDataPoint> GrievancesByStatus { get; set; } = new();
+        public List<ChartDataPoint> GrievancesByCategory { get; set; } = new();
+        public List<ChartDataPoint> MonthlyVolume { get; set; } = new();
+        public List<ChartDataPoint> AvgResolutionByDept { get; set; } = new();
+    }
 
-        // Line Chart: Volume over 6 months
-        public List<string> MonthlyLabels { get; set; } = new List<string>();
-        public List<int> MonthlyCounts { get; set; } = new List<int>();
-
-        // Pie Chart: Grievances by Status
-        public List<string> StatusLabels { get; set; } = new List<string>();
-        public List<int> StatusCounts { get; set; } = new List<int>();
-
-        // Table: Average resolution time per department
-        public List<DeptResolutionTime> ResolutionTimes { get; set; } = new List<DeptResolutionTime>();
+    public class ChartDataPoint
+    {
+        public string Label { get; set; } = string.Empty;
+        public double Value { get; set; }
     }
 }

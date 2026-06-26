@@ -20,17 +20,20 @@ namespace GMS.Web.Controllers
         private readonly IRoutingService _routingService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ApplicationDbContext _context;
+        private readonly INotificationService _notificationService;
 
         public AdminController(
             IGrievanceService grievanceService,
             IRoutingService routingService,
             UserManager<ApplicationUser> userManager,
-            ApplicationDbContext context)
+            ApplicationDbContext context,
+            INotificationService notificationService)
         {
             _grievanceService = grievanceService;
             _routingService = routingService;
             _userManager = userManager;
             _context = context;
+            _notificationService = notificationService;
         }
 
         // Admin dashboard grid (FR-17)
@@ -89,11 +92,13 @@ namespace GMS.Web.Controllers
             if (grievance == null) return NotFound();
 
             var departments = await _context.Departments.ToListAsync();
+            var staffUsers = await _userManager.GetUsersInRoleAsync("Staff");
 
             var viewModel = new GrievanceDetailViewModel
             {
                 Grievance = grievance,
                 AllDepartments = departments,
+                AllStaffUsers = staffUsers.ToList(),
                 NewStatus = grievance.Status,
                 NewDepartmentId = grievance.DepartmentId
             };
@@ -140,6 +145,262 @@ namespace GMS.Web.Controllers
             }
 
             return RedirectToAction(nameof(Detail), new { id = model.Grievance.Id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AssignStaff(int grievanceId, string staffUserId, string? assignmentNote)
+        {
+            var adminId = _userManager.GetUserId(User) ?? "Admin";
+
+            var grievance = await _context.Grievances
+                .Include(g => g.Category)
+                .Include(g => g.Department)
+                .FirstOrDefaultAsync(g => g.Id == grievanceId);
+
+            if (grievance == null) return NotFound();
+
+            var staffUser = await _userManager.FindByIdAsync(staffUserId);
+            if (staffUser == null || !await _userManager.IsInRoleAsync(staffUser, "Staff"))
+            {
+                TempData["ErrorMessage"] = "Selected user is not a valid staff member.";
+                return RedirectToAction(nameof(Detail), new { id = grievanceId });
+            }
+
+            grievance.AssignedStaffUserId = staffUserId;
+            grievance.LastUpdatedAt = DateTime.UtcNow;
+
+            var noteStr = string.IsNullOrWhiteSpace(assignmentNote) ? "" : $" Note: {assignmentNote}";
+            var historyNotes = $"Assigned to staff member {staffUser.FullName} by administrator.{noteStr}";
+
+            // Log status history
+            var history = new GrievanceStatusHistory
+            {
+                GrievanceId = grievanceId,
+                OldStatus = grievance.Status,
+                NewStatus = grievance.Status,
+                ChangedByUserId = adminId,
+                ChangedAt = DateTime.UtcNow,
+                Notes = historyNotes
+            };
+            _context.GrievanceStatusHistories.Add(history);
+
+            // Log audit log
+            var audit = new AuditLog
+            {
+                UserId = adminId,
+                Action = "AssignStaff",
+                EntityType = "Grievance",
+                EntityId = grievanceId.ToString(),
+                Timestamp = DateTime.UtcNow,
+                Details = $"Grievance {grievance.TicketNumber} assigned to staff member {staffUser.FullName} ({staffUser.Email})."
+            };
+            _context.AuditLogs.Add(audit);
+
+            await _context.SaveChangesAsync();
+
+            // Anonymity-safe notification
+            string message;
+            if (grievance.IsAnonymous)
+            {
+                message = $"You have been assigned grievance {grievance.TicketNumber} (Anonymous Filing) — {grievance.Department?.Name} — Category: {grievance.Category?.Name}.{(string.IsNullOrWhiteSpace(assignmentNote) ? "" : $" Note from admin: {assignmentNote}")}";
+            }
+            else
+            {
+                message = $"You have been assigned grievance {grievance.TicketNumber} — {grievance.Department?.Name} — Category: {grievance.Category?.Name}.{(string.IsNullOrWhiteSpace(assignmentNote) ? "" : $" Note from admin: {assignmentNote}")}";
+            }
+
+            await _notificationService.SendNotificationAsync(staffUserId, grievanceId, message, NotificationType.Assignment);
+
+            TempData["SuccessMessage"] = "Staff member assigned successfully.";
+            return RedirectToAction(nameof(Detail), new { id = grievanceId });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Users(string? role = null, string? search = null)
+        {
+            var currentUserId = _userManager.GetUserId(User);
+            var query = _userManager.Users.Where(u => u.Id != currentUserId);
+
+            if (!string.IsNullOrEmpty(search))
+            {
+                var s = search.Trim().ToLower();
+                query = query.Where(u => u.FullName.ToLower().Contains(s) || u.Email.ToLower().Contains(s) || (u.StudentId != null && u.StudentId.ToLower().Contains(s)));
+            }
+
+            var allUsers = await query.OrderByDescending(u => u.CreatedAt).ToListAsync();
+            var listItems = new List<UserListItemViewModel>();
+
+            foreach (var user in allUsers)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                var userRole = roles.FirstOrDefault() ?? "No Role";
+
+                if (!string.IsNullOrEmpty(role) && !userRole.Equals(role, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue; // filter by role
+                }
+
+                var grievanceCount = 0;
+                if (userRole == "Student")
+                {
+                    grievanceCount = await _context.Grievances.CountAsync(g => g.StudentId == user.Id);
+                }
+
+                listItems.Add(new UserListItemViewModel
+                {
+                    Id = user.Id,
+                    FullName = user.FullName,
+                    Email = user.Email ?? string.Empty,
+                    StudentId = user.StudentId,
+                    Department = user.Department,
+                    Role = userRole,
+                    IsActive = user.IsActive,
+                    CreatedAt = user.CreatedAt,
+                    GrievanceCount = grievanceCount
+                });
+            }
+
+            var viewModel = new UserManagementViewModel
+            {
+                Users = listItems,
+                SelectedRole = role,
+                SearchQuery = search
+            };
+
+            return View(viewModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleUserStatus(string userId)
+        {
+            var currentAdminId = _userManager.GetUserId(User) ?? "Admin";
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return NotFound();
+
+            user.IsActive = !user.IsActive;
+            var result = await _userManager.UpdateAsync(user);
+
+            if (result.Succeeded)
+            {
+                var audit = new AuditLog
+                {
+                    UserId = currentAdminId,
+                    Action = "ToggleUserStatus",
+                    EntityType = "ApplicationUser",
+                    EntityId = userId,
+                    Timestamp = DateTime.UtcNow,
+                    Details = $"Toggled status of user {user.FullName} ({user.Email}) to {(user.IsActive ? "Active" : "Inactive")}."
+                };
+                _context.AuditLogs.Add(audit);
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = $"User status updated successfully. Account is now {(user.IsActive ? "Active" : "Inactive")}.";
+            }
+            else
+            {
+                TempData["ErrorMessage"] = "Failed to update user status.";
+            }
+
+            return RedirectToAction(nameof(Users));
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Departments()
+        {
+            var departments = await _context.Departments
+                .Include(d => d.StaffUser)
+                .ToListAsync();
+
+            var staffUsers = await _userManager.GetUsersInRoleAsync("Staff");
+            ViewBag.StaffUsers = staffUsers.ToList();
+
+            return View(departments);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AssignDepartmentStaff(int departmentId, string? staffUserId)
+        {
+            var currentAdminId = _userManager.GetUserId(User) ?? "Admin";
+            var department = await _context.Departments.FindAsync(departmentId);
+            if (department == null) return NotFound();
+
+            department.StaffUserId = string.IsNullOrEmpty(staffUserId) ? null : staffUserId;
+            await _context.SaveChangesAsync();
+
+            string detailsStr;
+            if (string.IsNullOrEmpty(staffUserId))
+            {
+                detailsStr = $"Unassigned staff from department {department.Name}.";
+            }
+            else
+            {
+                var staffUser = await _userManager.FindByIdAsync(staffUserId);
+                detailsStr = $"Assigned staff user {staffUser?.FullName ?? staffUserId} to department {department.Name}.";
+            }
+
+            var audit = new AuditLog
+            {
+                UserId = currentAdminId,
+                Action = "AssignDepartmentStaff",
+                EntityType = "Department",
+                EntityId = departmentId.ToString(),
+                Timestamp = DateTime.UtcNow,
+                Details = detailsStr
+            };
+            _context.AuditLogs.Add(audit);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Department staff assignment updated successfully.";
+            return RedirectToAction(nameof(Departments));
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> AuditLog(string? search = null, DateTime? from = null, DateTime? to = null, int page = 1)
+        {
+            var query = _context.AuditLogs
+                .Include(a => a.User)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(search))
+            {
+                var s = search.Trim().ToLower();
+                query = query.Where(a => 
+                    a.Action.ToLower().Contains(s) || 
+                    a.EntityType.ToLower().Contains(s) || 
+                    a.Details.ToLower().Contains(s) || 
+                    (a.User != null && a.User.FullName.ToLower().Contains(s))
+                );
+            }
+
+            if (from.HasValue)
+            {
+                query = query.Where(a => a.Timestamp >= from.Value);
+            }
+
+            if (to.HasValue)
+            {
+                var toDate = to.Value.Date.AddDays(1).AddSeconds(-1);
+                query = query.Where(a => a.Timestamp <= toDate);
+            }
+
+            var totalLogsCount = await query.CountAsync();
+            var pageSize = 25;
+            var logs = await query
+                .OrderByDescending(a => a.Timestamp)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = (int)Math.Ceiling((double)totalLogsCount / pageSize);
+            ViewBag.SearchQuery = search;
+            ViewBag.FromDate = from?.ToString("yyyy-MM-dd");
+            ViewBag.ToDate = to?.ToString("yyyy-MM-dd");
+
+            return View(logs);
         }
     }
 }

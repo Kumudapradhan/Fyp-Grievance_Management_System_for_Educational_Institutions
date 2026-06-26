@@ -210,27 +210,27 @@ namespace GMS.Web.Controllers
             };
             _context.AuditLogs.Add(audit);
 
-            await _context.SaveChangesAsync();
-
-            // Notify student (if not anonymous)
-            if (!grievance.IsAnonymous)
+            // Notify student in-app (if not anonymous)
+            if (!grievance.IsAnonymous && grievance.StudentId != null)
             {
                 var messageText = $"Your grievance {grievance.TicketNumber} has been resolved by the {grievance.Department?.Name} department. Resolution: {resolutionNotes}";
-                
-                if (grievance.StudentId != null)
+                var notification = new Notification
                 {
-                    var notification = new Notification
-                    {
-                        UserId = grievance.StudentId,
-                        GrievanceId = grievance.Id,
-                        Message = messageText,
-                        IsRead = false,
-                        SentAt = DateTime.UtcNow,
-                        NotificationType = NotificationType.StatusChange
-                    };
-                    _context.Notifications.Add(notification);
-                }
+                    UserId = grievance.StudentId,
+                    GrievanceId = grievance.Id,
+                    Message = messageText,
+                    IsRead = false,
+                    SentAt = DateTime.UtcNow,
+                    NotificationType = NotificationType.StatusChange
+                };
+                _context.Notifications.Add(notification);
+            }
 
+            await _context.SaveChangesAsync();
+
+            // Notify student via email (if not anonymous)
+            if (!grievance.IsAnonymous)
+            {
                 var emailAddress = grievance.Student?.Email;
                 if (!string.IsNullOrEmpty(emailAddress))
                 {

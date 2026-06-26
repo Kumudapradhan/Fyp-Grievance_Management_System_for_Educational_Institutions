@@ -1,5 +1,70 @@
+@using Microsoft.EntityFrameworkCore
+@inject GMS.Web.Data.ApplicationDbContext _layoutDb
+@inject Microsoft.AspNetCore.Identity.UserManager<GMS.Web.Models.Entities.ApplicationUser> _layoutUserMgr
 @{
     Layout = "_Layout";
+
+    var currentStudentId = _layoutUserMgr.GetUserId(User);
+    var unreadStudentNotifications = new List<GMS.Web.Models.Entities.Notification>();
+    var unreadStudentCount = 0;
+
+    if (!string.IsNullOrEmpty(currentStudentId))
+    {
+        unreadStudentCount = _layoutDb.Notifications.Count(n => n.UserId == currentStudentId && !n.IsRead);
+        
+        unreadStudentNotifications = _layoutDb.Notifications
+            .Include(n => n.Grievance)
+            .Where(n => n.UserId == currentStudentId && !n.IsRead)
+            .OrderByDescending(n => n.SentAt)
+            .Take(5)
+            .ToList();
+    }
+}
+
+@section StudentNotificationBell {
+    <div class="dropdown me-3">
+        <button class="btn btn-link text-dark position-relative p-1" type="button" id="studentBellDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="text-decoration: none;">
+            <i class="bi bi-bell-fill fs-5 text-primary"></i>
+            @if (unreadStudentCount > 0)
+            {
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">
+                    @unreadStudentCount
+                </span>
+            }
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2" aria-labelledby="studentBellDropdown" style="width: 320px; max-height: 400px; overflow-y: auto; font-size: 0.85rem;">
+            <li class="dropdown-header fw-bold text-dark d-flex justify-content-between align-items-center border-bottom pb-2">
+                <span>Notifications (@unreadStudentCount)</span>
+                @if (unreadStudentCount > 0)
+                {
+                    <form asp-controller="Grievance" asp-action="MarkAllNotificationsRead" method="post" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-link p-0 text-primary fw-semibold text-decoration-none small" style="font-size: 0.75rem;">Mark all as read</button>
+                    </form>
+                }
+            </li>
+            @if (unreadStudentNotifications.Any())
+            {
+                @foreach (var note in unreadStudentNotifications)
+                {
+                    <li>
+                        <a class="dropdown-item py-2.5 border-bottom text-wrap text-dark" asp-controller="Grievance" asp-action="Detail" asp-route-id="@note.GrievanceId">
+                            <div class="fw-semibold text-dark mb-0.5">@note.Grievance?.TicketNumber</div>
+                            <div class="text-secondary small">@note.Message</div>
+                            <div class="text-muted small mt-1 text-end" style="font-size: 0.7rem;">@note.SentAt.ToString("g")</div>
+                        </a>
+                    </li>
+                }
+            }
+            else
+            {
+                <li class="text-center py-4 text-muted">
+                    <i class="bi bi-bell-slash fs-4 d-block mb-1"></i>
+                    No unread notifications
+                </li>
+            }
+        </ul>
+    </div>
 }
 
 <div class="row">

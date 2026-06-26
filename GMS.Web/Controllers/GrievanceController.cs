@@ -225,6 +225,27 @@ namespace GMS.Web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> MarkAllNotificationsRead()
+        {
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userId)) return Challenge();
+
+            var notifications = await _context.Notifications
+                .Where(n => n.UserId == userId && !n.IsRead)
+                .ToListAsync();
+
+            foreach (var note in notifications)
+            {
+                note.IsRead = true;
+            }
+
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = "All notifications marked as read.";
+            return RedirectToAction(nameof(Index));
+        }
+
         // AJAX endpoint for dynamically displaying department name
         [HttpGet]
         [AllowAnonymous]

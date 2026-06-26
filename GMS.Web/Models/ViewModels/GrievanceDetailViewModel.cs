@@ -7,6 +7,7 @@ namespace GMS.Web.Models.ViewModels
     {
         public Grievance Grievance { get; set; } = null!;
         public List<Department> AllDepartments { get; set; } = new List<Department>();
+        public List<ApplicationUser> AllStaffUsers { get; set; } = new();
         
         // Form model for updating ticket status
         public GrievanceStatus NewStatus { get; set; }

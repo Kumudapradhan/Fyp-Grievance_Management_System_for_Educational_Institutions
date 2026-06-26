@@ -17,11 +17,32 @@
                         <small class="text-muted">Grievance console</small>
                     </div>
                 </a>
+                <a asp-controller="Admin" asp-action="Users" class="list-group-item list-group-item-action py-3 border-0 d-flex align-items-center border-top">
+                    <i class="bi bi-people text-info fs-5 me-3"></i>
+                    <div>
+                        <span class="d-block fw-semibold text-dark">User Management</span>
+                        <small class="text-muted">Manage active accounts</small>
+                    </div>
+                </a>
+                <a asp-controller="Admin" asp-action="Departments" class="list-group-item list-group-item-action py-3 border-0 d-flex align-items-center border-top">
+                    <i class="bi bi-building text-secondary fs-5 me-3"></i>
+                    <div>
+                        <span class="d-block fw-semibold text-dark">Department Setup</span>
+                        <small class="text-muted">Staff assignments</small>
+                    </div>
+                </a>
                 <a asp-controller="Report" asp-action="Index" class="list-group-item list-group-item-action py-3 border-0 d-flex align-items-center border-top">
                     <i class="bi bi-graph-up-arrow text-success fs-5 me-3"></i>
                     <div>
                         <span class="d-block fw-semibold text-dark">Analytics & Reports</span>
                         <small class="text-muted">SLA and metrics charts</small>
+                    </div>
+                </a>
+                <a asp-controller="Admin" asp-action="AuditLog" class="list-group-item list-group-item-action py-3 border-0 d-flex align-items-center border-top">
+                    <i class="bi bi-journal-text text-danger fs-5 me-3"></i>
+                    <div>
+                        <span class="d-block fw-semibold text-dark">Audit Log</span>
+                        <small class="text-muted">System actions history</small>
                     </div>
                 </a>
                 <a asp-controller="Grievance" asp-action="Track" class="list-group-item list-group-item-action py-3 border-0 d-flex align-items-center border-top">
