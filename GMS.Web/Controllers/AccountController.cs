@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -17,17 +19,23 @@ namespace GMS.Web.Controllers
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly ApplicationDbContext _context;
+        private readonly Microsoft.AspNetCore.Identity.UI.Services.IEmailSender _emailSender;
+        private readonly ILogger<AccountController> _logger;
 
         public AccountController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             RoleManager<IdentityRole> roleManager,
-            ApplicationDbContext context)
+            ApplicationDbContext context,
+            Microsoft.AspNetCore.Identity.UI.Services.IEmailSender emailSender,
+            ILogger<AccountController> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _roleManager = roleManager;
             _context = context;
+            _emailSender = emailSender;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -50,6 +58,12 @@ namespace GMS.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
+            // Lockdown staff registration to Administrator only
+            if (model.Role == "Staff" && !User.IsInRole("Administrator"))
+            {
+                return Forbid();
+            }
+
             if (ModelState.IsValid)
             {
                 var user = new ApplicationUser
@@ -77,7 +91,7 @@ namespace GMS.Web.Controllers
                         else
                         {
                             user.StudentId = model.StudentId;
-                            // Custom property mapping for Student
+                            user.Programme = model.Programme;
                         }
                     }
                 }
@@ -112,9 +126,17 @@ namespace GMS.Web.Controllers
                             }
                         }
 
-                        // Auto login
-                        await _signInManager.SignInAsync(user, isPersistent: false);
-                        return RedirectToDashboard();
+                        // Auto login or redirect to Admin Users list
+                        if (User.IsInRole("Administrator"))
+                        {
+                            TempData["SuccessMessage"] = $"Academic staff user {user.FullName} ({user.Email}) registered successfully.";
+                            return RedirectToAction("Users", "Admin");
+                        }
+                        else
+                        {
+                            await _signInManager.SignInAsync(user, isPersistent: false);
+                            return RedirectToDashboard();
+                        }
                     }
 
                     foreach (var error in result.Errors)
@@ -154,10 +176,16 @@ namespace GMS.Web.Controllers
                     return View(model);
                 }
 
-                var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, lockoutOnFailure: false);
+                var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, lockoutOnFailure: true);
                 if (result.Succeeded)
                 {
                     return RedirectToDashboard();
+                }
+                if (result.IsLockedOut)
+                {
+                    _logger.LogWarning("User account locked out: {Email}", model.Email);
+                    ModelState.AddModelError(string.Empty, "This account is temporarily locked out due to multiple failed login attempts. Please try again in 15 minutes.");
+                    return View(model);
                 }
 
                 ModelState.AddModelError(string.Empty, "Invalid login credentials.");
@@ -179,6 +207,204 @@ namespace GMS.Web.Controllers
         {
             Response.StatusCode = 403;
             return View();
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult ForgotPassword()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var user = await _userManager.FindByEmailAsync(model.Email);
+                if (user == null)
+                {
+                    // Don't reveal that the user does not exist
+                    return View("ForgotPasswordConfirmation");
+                }
+
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var callbackUrl = Url.Action("ResetPassword", "Account", new { token, email = user.Email }, protocol: Request.Scheme);
+
+                await _emailSender.SendEmailAsync(model.Email, "Reset Password",
+                    $"Please reset your password by clicking here: <a href='{callbackUrl}'>link</a>");
+
+                // Save to TempData for demo visibility in case console log is truncated or missing
+                TempData["ResetLink"] = callbackUrl;
+
+                return View("ForgotPasswordConfirmation");
+            }
+
+            return View(model);
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult ForgotPasswordConfirmation()
+        {
+            return View();
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult ResetPassword(string? token = null, string? email = null)
+        {
+            if (token == null || email == null)
+            {
+                return RedirectToAction("Login");
+            }
+            return View(new ResetPasswordViewModel { Token = token, Email = email });
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            if (user == null)
+            {
+                // Don't reveal that the user does not exist
+                return RedirectToAction("ResetPasswordConfirmation");
+            }
+
+            var result = await _userManager.ResetPasswordAsync(user, model.Token, model.Password);
+            if (result.Succeeded)
+            {
+                return RedirectToAction("ResetPasswordConfirmation");
+            }
+
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(string.Empty, error.Description);
+            }
+            return View(model);
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult ResetPasswordConfirmation()
+        {
+            return View();
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> Profile()
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return Challenge();
+            }
+
+            var model = new EditProfileViewModel
+            {
+                FullName = user.FullName,
+                Email = user.Email ?? string.Empty,
+                StudentId = user.StudentId,
+                Programme = user.Programme,
+                Department = user.Department
+            };
+
+            var departments = await _context.Departments.Select(d => d.Name).ToListAsync();
+            ViewBag.Departments = new SelectList(departments);
+
+            return View(model);
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditProfile(EditProfileViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                var departments = await _context.Departments.Select(d => d.Name).ToListAsync();
+                ViewBag.Departments = new SelectList(departments);
+                return View("Profile", model);
+            }
+
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return Challenge();
+            }
+
+            user.FullName = model.FullName;
+            
+            // Allow Student specific fields updates
+            if (User.IsInRole("Student"))
+            {
+                user.StudentId = model.StudentId;
+                user.Programme = model.Programme;
+            }
+            // Allow Staff specific fields updates
+            else if (User.IsInRole("Staff"))
+            {
+                user.Department = model.Department;
+            }
+
+            var result = await _userManager.UpdateAsync(user);
+            if (result.Succeeded)
+            {
+                TempData["SuccessMessage"] = "Profile updated successfully.";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(string.Empty, error.Description);
+            }
+
+            var depts = await _context.Departments.Select(d => d.Name).ToListAsync();
+            ViewBag.Departments = new SelectList(depts);
+            return View("Profile", model);
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["ErrorMessage"] = "Password inputs did not meet requirements.";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return Challenge();
+            }
+
+            var result = await _userManager.ChangePasswordAsync(user, model.OldPassword, model.NewPassword);
+            if (result.Succeeded)
+            {
+                await _signInManager.RefreshSignInAsync(user);
+                TempData["SuccessMessage"] = "Password changed successfully.";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            foreach (var error in result.Errors)
+            {
+                TempData["ErrorMessage"] = error.Description;
+            }
+
+            return RedirectToAction(nameof(Profile));
         }
 
         private IActionResult RedirectToDashboard()

@@ -83,9 +83,12 @@
                         }
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                            <div class="dropdown me-3">
-                                <span class="text-secondary small me-2"><i class="bi bi-person-badge-fill me-1"></i> Role: <strong>@(User.IsInRole("Administrator") ? "Administrator" : User.IsInRole("Staff") ? "Staff" : "Student")</strong></span>
-                                <span class="fw-semibold text-dark">@User.Identity.Name</span>
+                            <div class="me-3 d-flex align-items-center">
+                                <a asp-controller="Account" asp-action="Profile" class="text-decoration-none me-3 d-flex align-items-center">
+                                    <i class="bi bi-person-circle fs-5 me-1 text-primary"></i>
+                                    <span class="fw-semibold text-dark">@User.Identity.Name</span>
+                                </a>
+                                <span class="badge bg-secondary text-white py-1.5 px-2.5 rounded-pill"><i class="bi bi-person-badge-fill me-1"></i> @(User.IsInRole("Administrator") ? "Admin" : User.IsInRole("Staff") ? "Staff" : "Student")</span>
                             </div>
                             
                             <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">

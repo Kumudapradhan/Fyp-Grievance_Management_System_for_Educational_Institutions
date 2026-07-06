@@ -1,0 +1,122 @@
+@model GMS.Web.Models.ViewModels.EditProfileViewModel
+
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<div class="container py-4">
+    <div class="row">
+        <!-- Profile Navigation Sidebar -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm border-0 rounded-3 overflow-hidden bg-white text-center p-4">
+                <div class="card-body">
+                    <div class="position-relative d-inline-block mb-3">
+                        <i class="bi bi-person-circle text-primary" style="font-size: 6rem;"></i>
+                    </div>
+                    <h4 class="fw-bold mb-1 text-dark">@Model.FullName</h4>
+                    <p class="text-secondary small mb-3">@Model.Email</p>
+                    
+                    <span class="badge bg-secondary text-white py-1.5 px-3 rounded-pill fw-semibold mb-0">
+                        <i class="bi bi-person-badge me-1"></i>
+                        @(User.IsInRole("Administrator") ? "Administrator" : User.IsInRole("Staff") ? "Academic Staff" : "Student")
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Details Forms -->
+        <div class="col-lg-8">
+            <!-- Edit Profile Card -->
+            <div class="card shadow-sm border-0 rounded-3 mb-4 bg-white">
+                <div class="card-header bg-light py-3">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-person-gear me-2 text-primary"></i> Edit Profile Details</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="EditProfile" method="post">
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3 small"></div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label asp-for="FullName" class="form-label fw-semibold">Full Name</label>
+                                <input asp-for="FullName" class="form-control form-control-gms" />
+                                <span asp-validation-for="FullName" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Email" class="form-label fw-semibold">Email Address</label>
+                                <input asp-for="Email" class="form-control form-control-gms text-secondary" readonly />
+                                <span asp-validation-for="Email" class="text-danger small"></span>
+                            </div>
+                        </div>
+
+                        @if (User.IsInRole("Student"))
+                        {
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <label asp-for="StudentId" class="form-label fw-semibold">Student ID</label>
+                                    <input asp-for="StudentId" class="form-control form-control-gms" />
+                                    <span asp-validation-for="StudentId" class="text-danger small"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="Programme" class="form-label fw-semibold">Academic Programme</label>
+                                    <input asp-for="Programme" class="form-control form-control-gms" />
+                                    <span asp-validation-for="Programme" class="text-danger small"></span>
+                                </div>
+                            </div>
+                        }
+                        else if (User.IsInRole("Staff"))
+                        {
+                            <div class="mb-4">
+                                <label asp-for="Department" class="form-label fw-semibold">Assigned Department</label>
+                                <select asp-for="Department" asp-items="ViewBag.Departments" class="form-select form-control-gms">
+                                    <option value="">-- Select Department --</option>
+                                </select>
+                                <span asp-validation-for="Department" class="text-danger small"></span>
+                            </div>
+                        }
+
+                        <button type="submit" class="btn btn-primary btn-gms-primary px-4 py-2 fw-semibold">
+                            <i class="bi bi-save me-1"></i> Save Profile
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Change Password Card -->
+            <div class="card shadow-sm border-0 rounded-3 bg-white">
+                <div class="card-header bg-light py-3">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-shield-lock me-2 text-danger"></i> Update Password</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="ChangePassword" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" for="OldPassword">Current Password</label>
+                            <input type="password" id="OldPassword" name="OldPassword" class="form-control form-control-gms" required />
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="NewPassword">New Password</label>
+                                <input type="password" id="NewPassword" name="NewPassword" class="form-control form-control-gms" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="ConfirmPassword">Confirm New Password</label>
+                                <input type="password" id="ConfirmPassword" name="ConfirmPassword" class="form-control form-control-gms" required />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-danger px-4 py-2 fw-semibold">
+                            <i class="bi bi-check2-circle me-1"></i> Change Password
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+}

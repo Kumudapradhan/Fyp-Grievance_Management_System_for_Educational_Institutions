@@ -111,8 +111,8 @@ namespace GMS.Web.Controllers
             var department = await _context.Departments
                 .FirstOrDefaultAsync(d => d.StaffUserId == user.Id || d.Name == user.Department);
 
-            // Access Control: Staff can only view tickets routed to their assigned department
-            if (department == null || grievance.DepartmentId != department.Id)
+            // Access Control: Staff can only view tickets assigned to them
+            if (department == null || grievance.DepartmentId != department.Id || (grievance.AssignedStaffUserId != null && grievance.AssignedStaffUserId != user.Id))
             {
                 return Forbid();
             }
@@ -137,6 +137,18 @@ namespace GMS.Web.Controllers
         {
             var user = await _userManager.GetUserAsync(User);
             if (user == null) return Challenge();
+
+            var grievance = await _context.Grievances.FindAsync(model.Grievance.Id);
+            if (grievance == null) return NotFound();
+
+            var department = await _context.Departments
+                .FirstOrDefaultAsync(d => d.StaffUserId == user.Id || d.Name == user.Department);
+
+            // Access Control: Staff can only update tickets assigned to them
+            if (department == null || grievance.DepartmentId != department.Id || (grievance.AssignedStaffUserId != null && grievance.AssignedStaffUserId != user.Id))
+            {
+                return Forbid();
+            }
 
             try
             {
@@ -175,8 +187,8 @@ namespace GMS.Web.Controllers
             var department = await _context.Departments
                 .FirstOrDefaultAsync(d => d.StaffUserId == user.Id || d.Name == user.Department);
 
-            // Access Control: Staff can only resolve tickets routed to their assigned department
-            if (department == null || grievance.DepartmentId != department.Id)
+            // Access Control: Staff can only resolve tickets assigned to them
+            if (department == null || grievance.DepartmentId != department.Id || (grievance.AssignedStaffUserId != null && grievance.AssignedStaffUserId != user.Id))
             {
                 return Forbid();
             }

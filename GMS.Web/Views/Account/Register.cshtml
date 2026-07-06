@@ -18,20 +18,27 @@
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3 small"></div>
 
                     <!-- Role Selection -->
-                    <div class="mb-4 text-center">
-                        <label class="form-label d-block fw-bold mb-3 text-secondary">REGISTER AS</label>
-                        <div class="btn-group w-100" role="group" aria-label="Role selector toggle">
-                            <input type="radio" class="btn-check" name="Role" id="roleStudent" value="Student" checked />
-                            <label class="btn btn-outline-primary py-2.5 fw-semibold" for="roleStudent">
-                                <i class="bi bi-person-workspace me-2"></i> Student
-                            </label>
+                    @if (User.IsInRole("Administrator"))
+                    {
+                        <div class="mb-4 text-center">
+                            <label class="form-label d-block fw-bold mb-3 text-secondary">REGISTER AS</label>
+                            <div class="btn-group w-100" role="group" aria-label="Role selector toggle">
+                                <input type="radio" class="btn-check" name="Role" id="roleStudent" value="Student" checked />
+                                <label class="btn btn-outline-primary py-2.5 fw-semibold" for="roleStudent">
+                                    <i class="bi bi-person-workspace me-2"></i> Student
+                                </label>
 
-                            <input type="radio" class="btn-check" name="Role" id="roleStaff" value="Staff" />
-                            <label class="btn btn-outline-primary py-2.5 fw-semibold" for="roleStaff">
-                                <i class="bi bi-briefcase me-2"></i> Academic Staff
-                            </label>
+                                <input type="radio" class="btn-check" name="Role" id="roleStaff" value="Staff" />
+                                <label class="btn btn-outline-primary py-2.5 fw-semibold" for="roleStaff">
+                                    <i class="bi bi-briefcase me-2"></i> Academic Staff
+                                </label>
+                            </div>
                         </div>
-                    </div>
+                    }
+                    else
+                    {
+                        <input type="hidden" name="Role" value="Student" />
+                    }
 
                     <hr class="mb-4" />
 
