@@ -109,6 +109,114 @@ namespace GMS.Web.Data
                 }
             }
             await context.SaveChangesAsync();
+
+            // 5. Seed System SLA and System Admin Session Users to avoid constraint checks crash
+            var systemSlaEmail = "system.sla@gms.edu.my";
+            var slaUser = await userManager.FindByIdAsync("SystemSLA");
+            if (slaUser == null)
+            {
+                slaUser = new ApplicationUser
+                {
+                    Id = "SystemSLA",
+                    UserName = systemSlaEmail,
+                    Email = systemSlaEmail,
+                    FullName = "System SLA Engine",
+                    EmailConfirmed = true,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await userManager.CreateAsync(slaUser, "SystemSla@123");
+                await userManager.AddToRoleAsync(slaUser, "Administrator");
+            }
+
+            var systemAdminEmail = "system.admin@gms.edu.my";
+            var sysAdminUser = await userManager.FindByIdAsync("Admin");
+            if (sysAdminUser == null)
+            {
+                sysAdminUser = new ApplicationUser
+                {
+                    Id = "Admin",
+                    UserName = systemAdminEmail,
+                    Email = systemAdminEmail,
+                    FullName = "System Admin Session",
+                    EmailConfirmed = true,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await userManager.CreateAsync(sysAdminUser, "SystemAdmin@123");
+                await userManager.AddToRoleAsync(sysAdminUser, "Administrator");
+            }
+
+            // 6. Seed default system settings
+            var defaultSettings = new[]
+            {
+                new { Key = "SLA_OverdueDays", Value = "7", Desc = "Default calendar day limits before setting Overdue flags on open tickets" },
+                new { Key = "SLA_RepetitiveWindowDays", Value = "30", Desc = "Window in days to scan duplicate complaints categories" },
+                new { Key = "SLA_RepetitiveThresholdCount", Value = "3", Desc = "Complaint count limit threshold to escalate category priority" }
+            };
+
+            foreach (var setting in defaultSettings)
+            {
+                var existingSetting = await context.SystemSettings.FirstOrDefaultAsync(s => s.Key == setting.Key);
+                if (existingSetting == null)
+                {
+                    context.SystemSettings.Add(new SystemSetting
+                    {
+                        Key = setting.Key,
+                        Value = setting.Value,
+                        Description = setting.Desc,
+                        LastUpdatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+            await context.SaveChangesAsync();
+
+            // 7. Seed Subcategories
+            var categories = await context.Categories.ToListAsync();
+            var academicCat = categories.FirstOrDefault(c => c.Name == "Academic Issue");
+            var financeCat = categories.FirstOrDefault(c => c.Name == "Financial Issue");
+            var welfareCat = categories.FirstOrDefault(c => c.Name == "Welfare / Personal Issue");
+            var itCat = categories.FirstOrDefault(c => c.Name == "IT / System Issue");
+            var adminCat = categories.FirstOrDefault(c => c.Name == "Administrative Issue");
+
+            if (academicCat != null)
+            {
+                await SeedSubcategoryIfNotExists(context, "Module Registration", academicCat.Id);
+                await SeedSubcategoryIfNotExists(context, "Exam Timetable", academicCat.Id);
+                await SeedSubcategoryIfNotExists(context, "Grade Discrepancy", academicCat.Id);
+            }
+            if (financeCat != null)
+            {
+                await SeedSubcategoryIfNotExists(context, "Tuition Fee Payments", financeCat.Id);
+                await SeedSubcategoryIfNotExists(context, "Refund Delays", financeCat.Id);
+                await SeedSubcategoryIfNotExists(context, "Scholarship Disbursal", financeCat.Id);
+            }
+            if (welfareCat != null)
+            {
+                await SeedSubcategoryIfNotExists(context, "Student Housing", welfareCat.Id);
+                await SeedSubcategoryIfNotExists(context, "Mental Health Counseling", welfareCat.Id);
+            }
+            if (itCat != null)
+            {
+                await SeedSubcategoryIfNotExists(context, "Campus Wi-Fi Outage", itCat.Id);
+                await SeedSubcategoryIfNotExists(context, "LMS Login Failure", itCat.Id);
+            }
+            if (adminCat != null)
+            {
+                await SeedSubcategoryIfNotExists(context, "Facilities/Maintenance", adminCat.Id);
+                await SeedSubcategoryIfNotExists(context, "Shuttle Bus Schedule", adminCat.Id);
+            }
+
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task SeedSubcategoryIfNotExists(ApplicationDbContext context, string name, int categoryId)
+        {
+            var exists = await context.Subcategories.AnyAsync(s => s.Name == name && s.CategoryId == categoryId);
+            if (!exists)
+            {
+                context.Subcategories.Add(new Subcategory { Name = name, CategoryId = categoryId });
+            }
         }
     }
 }

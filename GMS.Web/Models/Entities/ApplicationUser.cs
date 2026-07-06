@@ -7,6 +7,7 @@ namespace GMS.Web.Models.Entities
     {
         public string FullName { get; set; } = string.Empty;
         public string? StudentId { get; set; }
+        public string? Programme { get; set; }
         public string? Department { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public bool IsActive { get; set; } = true;

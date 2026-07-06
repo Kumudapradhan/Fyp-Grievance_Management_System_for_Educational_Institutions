@@ -37,6 +37,9 @@ namespace GMS.Web.Models.Entities
         public int CategoryId { get; set; }
         public Category? Category { get; set; }
         
+        public int? SubcategoryId { get; set; }
+        public Subcategory? Subcategory { get; set; }
+        
         [Required]
         public int DepartmentId { get; set; }
         public Department? Department { get; set; }
@@ -61,6 +64,9 @@ namespace GMS.Web.Models.Entities
         [Required]
         public DateTime LastUpdatedAt { get; set; } = DateTime.UtcNow;
         
+        public DateTime? ClosedAt { get; set; }
+        public DateTime? DueDate { get; set; }
+        
         [StringLength(2000)]
         public string? ResolutionNotes { get; set; }
         
@@ -72,5 +78,6 @@ namespace GMS.Web.Models.Entities
 
         public ICollection<GrievanceAttachment> Attachments { get; set; } = new List<GrievanceAttachment>();
         public ICollection<GrievanceStatusHistory> StatusHistory { get; set; } = new List<GrievanceStatusHistory>();
+        public ICollection<Comment> Comments { get; set; } = new List<Comment>();
     }
 }
