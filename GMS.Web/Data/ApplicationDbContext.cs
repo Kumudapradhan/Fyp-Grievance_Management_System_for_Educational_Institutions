@@ -123,6 +123,7 @@ namespace GMS.Web.Data
                 entity.HasOne(al => al.User)
                     .WithMany()
                     .HasForeignKey(al => al.UserId)
+                    .IsRequired(false)
                     .OnDelete(DeleteBehavior.Restrict);
             });
         }

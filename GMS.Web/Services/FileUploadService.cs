@@ -50,7 +50,67 @@ namespace GMS.Web.Services
                 return false;
             }
 
+            // Read the first 8 bytes of the file for magic byte validation
+            byte[] fileHeader = new byte[8];
+            try
+            {
+                using (var stream = file.OpenReadStream())
+                {
+                    stream.Read(fileHeader, 0, 8);
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Failed to read file content headers: {ex.Message}";
+                return false;
+            }
+
+            if (extension == ".pdf" && !IsValidPdf(fileHeader))
+            {
+                errorMessage = "Invalid PDF file signature.";
+                return false;
+            }
+            if (extension == ".png" && !IsValidPng(fileHeader))
+            {
+                errorMessage = "Invalid PNG image file signature.";
+                return false;
+            }
+            if ((extension == ".jpg" || extension == ".jpeg") && !IsValidJpeg(fileHeader))
+            {
+                errorMessage = "Invalid JPEG image file signature.";
+                return false;
+            }
+            if (extension == ".docx" && !IsValidDocx(fileHeader))
+            {
+                errorMessage = "Invalid DOCX document file signature.";
+                return false;
+            }
+
             return true;
+        }
+
+        private bool IsValidPdf(byte[] header)
+        {
+            // %PDF-
+            return header.Length >= 4 && header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46;
+        }
+
+        private bool IsValidPng(byte[] header)
+        {
+            // 89 50 4E 47
+            return header.Length >= 4 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47;
+        }
+
+        private bool IsValidJpeg(byte[] header)
+        {
+            // FF D8 FF
+            return header.Length >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF;
+        }
+
+        private bool IsValidDocx(byte[] header)
+        {
+            // PK
+            return header.Length >= 2 && header[0] == 0x50 && header[1] == 0x4B;
         }
 
         public async Task<string> UploadFileAsync(IFormFile file, string ticketNumber)

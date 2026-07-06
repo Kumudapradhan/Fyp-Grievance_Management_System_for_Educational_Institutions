@@ -20,6 +20,7 @@ namespace GMS.Web.Controllers
         private readonly IGrievanceService _grievanceService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ApplicationDbContext _context;
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (int count, DateTime resetTime)> _rateLimits = new();
 
         public GrievanceController(
             IGrievanceService grievanceService,
@@ -151,6 +152,31 @@ namespace GMS.Web.Controllers
                 return View();
             }
 
+            // Implement IP-based rate limiting to prevent brute force sequential enumerations
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var now = DateTime.UtcNow;
+
+            if (_rateLimits.TryGetValue(ipAddress, out var limit))
+            {
+                if (now < limit.resetTime)
+                {
+                    if (limit.count >= 5) // max 5 searches per minute
+                    {
+                        ViewBag.Error = "Too many tracking attempts. Please wait a minute and try again.";
+                        return View();
+                    }
+                    _rateLimits[ipAddress] = (limit.count + 1, limit.resetTime);
+                }
+                else
+                {
+                    _rateLimits[ipAddress] = (1, now.AddMinutes(1));
+                }
+            }
+            else
+            {
+                _rateLimits[ipAddress] = (1, now.AddMinutes(1));
+            }
+
             var grievance = await _context.Grievances
                 .Include(g => g.Category)
                 .Include(g => g.Department)
@@ -211,6 +237,7 @@ namespace GMS.Web.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> MarkNotificationRead(int id)
         {
             var userId = _userManager.GetUserId(User);

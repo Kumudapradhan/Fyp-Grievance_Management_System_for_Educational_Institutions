@@ -3,6 +3,7 @@ using GMS.Web.Models.Entities;
 using GMS.Web.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using System;
@@ -55,8 +56,9 @@ namespace GMS.Tests
             var mockUpload = new Mock<IFileUploadService>();
             var mockNotif = new Mock<INotificationService>();
             var mockRepetitive = new Mock<IRepetitiveDetectionService>();
+            var mockLogger = new Mock<ILogger<GrievanceService>>();
 
-            var service = new GrievanceService(context, mockTicket.Object, mockUpload.Object, mockNotif.Object, mockRepetitive.Object);
+            var service = new GrievanceService(context, mockTicket.Object, mockUpload.Object, mockNotif.Object, mockRepetitive.Object, mockLogger.Object);
 
             // Act
             var result = await service.SubmitGrievanceAsync(grievance, new List<IFormFile>(), "student@test.com");
@@ -111,8 +113,9 @@ namespace GMS.Tests
             var mockUpload = new Mock<IFileUploadService>();
             var mockNotif = new Mock<INotificationService>();
             var mockRepetitive = new Mock<IRepetitiveDetectionService>();
+            var mockLogger = new Mock<ILogger<GrievanceService>>();
 
-            var service = new GrievanceService(context, mockTicket.Object, mockUpload.Object, mockNotif.Object, mockRepetitive.Object);
+            var service = new GrievanceService(context, mockTicket.Object, mockUpload.Object, mockNotif.Object, mockRepetitive.Object, mockLogger.Object);
 
             // Act
             await service.UpdateStatusAsync(2, GrievanceStatus.Resolved, "admin-1", "Funds credited back to student card.");

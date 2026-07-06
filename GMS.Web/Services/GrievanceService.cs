@@ -2,6 +2,7 @@ using GMS.Web.Data;
 using GMS.Web.Models.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -32,19 +33,22 @@ namespace GMS.Web.Services
         private readonly IFileUploadService _fileUploadService;
         private readonly INotificationService _notificationService;
         private readonly IRepetitiveDetectionService _repetitiveDetectionService;
+        private readonly ILogger<GrievanceService> _logger;
 
         public GrievanceService(
             ApplicationDbContext context, 
             ITicketService ticketService, 
             IFileUploadService fileUploadService, 
             INotificationService notificationService,
-            IRepetitiveDetectionService repetitiveDetectionService)
+            IRepetitiveDetectionService repetitiveDetectionService,
+            ILogger<GrievanceService> logger)
         {
             _context = context;
             _ticketService = ticketService;
             _fileUploadService = fileUploadService;
             _notificationService = notificationService;
             _repetitiveDetectionService = repetitiveDetectionService;
+            _logger = logger;
         }
 
         public async Task<Grievance> SubmitGrievanceAsync(Grievance grievance, List<IFormFile> files, string? sessionEmail)
@@ -66,7 +70,15 @@ namespace GMS.Web.Services
             grievance.DepartmentId = category.DefaultDepartmentId;
 
             _context.Grievances.Add(grievance);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Database update failed while saving grievance: {Message}. Inner Exception: {InnerMessage}", ex.Message, ex.InnerException?.Message);
+                throw;
+            }
 
             // 3. Process File Uploads (if any)
             if (files != null && files.Count > 0)
@@ -91,7 +103,15 @@ namespace GMS.Web.Services
                         throw new ArgumentException($"Attachment validation failed: {error}");
                     }
                 }
-                await _context.SaveChangesAsync();
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException ex)
+                {
+                    _logger.LogError(ex, "Database update failed while saving grievance attachments: {Message}. Inner Exception: {InnerMessage}", ex.Message, ex.InnerException?.Message);
+                    throw;
+                }
             }
 
             // 4. Run Repetitive Grievance Detection
@@ -110,7 +130,7 @@ namespace GMS.Web.Services
             // 5. Audit Log entry
             var audit = new AuditLog
             {
-                UserId = grievance.IsAnonymous ? "AnonymousStudent" : (grievance.StudentId ?? "Unregistered"),
+                UserId = grievance.IsAnonymous ? null : grievance.StudentId,
                 Action = "Submit",
                 EntityType = "Grievance",
                 EntityId = savedGrievance.Id.ToString(),
@@ -118,7 +138,15 @@ namespace GMS.Web.Services
                 Details = $"Grievance {savedGrievance.TicketNumber} submitted under category {savedGrievance.Category?.Name}."
             };
             _context.AuditLogs.Add(audit);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Database update failed while saving grievance audit log: {Message}. Inner Exception: {InnerMessage}", ex.Message, ex.InnerException?.Message);
+                throw;
+            }
 
             // 6. Trigger student confirmation email
             var emailAddress = grievance.IsAnonymous ? sessionEmail : (await _context.Users.FindAsync(grievance.StudentId))?.Email;
@@ -200,7 +228,15 @@ GMS Admin Portal";
             };
             _context.AuditLogs.Add(audit);
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Database update failed while updating grievance status: {Message}. Inner Exception: {InnerMessage}", ex.Message, ex.InnerException?.Message);
+                throw;
+            }
 
             // Notify Student
             var studentEmail = grievance.Student?.Email;

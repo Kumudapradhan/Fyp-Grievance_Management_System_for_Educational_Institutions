@@ -7,8 +7,7 @@ namespace GMS.Web.Models.Entities
     {
         public int Id { get; set; }
         
-        [Required]
-        public string UserId { get; set; } = string.Empty;
+        public string? UserId { get; set; }
         public ApplicationUser? User { get; set; }
         
         [Required]

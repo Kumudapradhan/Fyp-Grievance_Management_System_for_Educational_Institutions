@@ -79,7 +79,7 @@
                                     }
                                     else
                                     {
-                                        <span class="text-muted font-monospace">@log.UserId</span>
+                                        <span class="text-muted font-monospace">@(string.IsNullOrEmpty(log.UserId) ? "Anonymous / System" : log.UserId)</span>
                                     }
                                 </td>
                                 <td>
