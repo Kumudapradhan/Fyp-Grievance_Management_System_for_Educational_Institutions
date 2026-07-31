@@ -61,6 +61,56 @@ namespace GMS.Web.Controllers
             var departments = await _context.Departments.ToListAsync();
             var categories = await _context.Categories.ToListAsync();
 
+            var totalUsers = await _userManager.Users.CountAsync();
+            var totalDepts = departments.Count;
+
+            // Chart data 1: Complaints by Department
+            var deptData = await _context.Grievances
+                .GroupBy(g => g.Department.Name)
+                .Select(g => new { label = g.Key, count = g.Count() })
+                .ToListAsync();
+
+            // Chart data 2: Complaints by Category
+            var catData = await _context.Grievances
+                .GroupBy(g => g.Category.Name)
+                .Select(g => new { label = g.Key, count = g.Count() })
+                .ToListAsync();
+
+            // Chart data 3: Monthly Trend
+            var trendData = await _context.Grievances
+                .GroupBy(g => new { Year = g.SubmittedAt.Year, Month = g.SubmittedAt.Month })
+                .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
+                .Select(g => new { label = $"{g.Key.Year}-{g.Key.Month:D2}", count = g.Count() })
+                .ToListAsync();
+
+            // Chart data 4: Open vs Closed
+            var openVsClosed = new[]
+            {
+                new { label = "Active Open", count = openCount + progressCount },
+                new { label = "Resolved", count = resolvedCount }
+            };
+
+            // Chart data 5: Average Resolution Time (in days) per Department (safe for in-memory DB tests)
+            var resolvedGrievances = await _context.Grievances
+                .Where(g => g.Status == GrievanceStatus.Resolved && g.ClosedAt != null)
+                .Select(g => new { DeptName = g.Department.Name, g.SubmittedAt, g.ClosedAt })
+                .ToListAsync();
+
+            var resTimeByDept = resolvedGrievances
+                .GroupBy(g => g.DeptName)
+                .Select(g => new {
+                    label = g.Key,
+                    count = Math.Round(g.Average(x => (x.ClosedAt!.Value - x.SubmittedAt).TotalDays), 1)
+                })
+                .ToList();
+
+            // Recent activity audit logs
+            var recentActivity = await _context.AuditLogs
+                .Include(a => a.User)
+                .OrderByDescending(a => a.Timestamp)
+                .Take(5)
+                .ToListAsync();
+
             var viewModel = new AdminDashboardViewModel
             {
                 TotalCount = totalCount,
@@ -78,7 +128,15 @@ namespace GMS.Web.Controllers
                 SelectedPriority = priority,
                 SearchQuery = search,
                 StartDate = startDate,
-                EndDate = endDate
+                EndDate = endDate,
+                TotalUsersCount = totalUsers,
+                TotalDepartmentsCount = totalDepts,
+                ComplaintsByDepartmentJson = System.Text.Json.JsonSerializer.Serialize(deptData),
+                ComplaintsByCategoryJson = System.Text.Json.JsonSerializer.Serialize(catData),
+                MonthlyComplaintTrendJson = System.Text.Json.JsonSerializer.Serialize(trendData),
+                OpenVsClosedJson = System.Text.Json.JsonSerializer.Serialize(openVsClosed),
+                AverageResolutionTimeJson = System.Text.Json.JsonSerializer.Serialize(resTimeByDept),
+                RecentActivity = recentActivity
             };
 
             return View(viewModel);
@@ -164,6 +222,15 @@ namespace GMS.Web.Controllers
             if (staffUser == null || !await _userManager.IsInRoleAsync(staffUser, "Staff"))
             {
                 TempData["ErrorMessage"] = "Selected user is not a valid staff member.";
+                return RedirectToAction(nameof(Detail), new { id = grievanceId });
+            }
+
+            var staffDepartment = await _context.Departments
+                .FirstOrDefaultAsync(d => d.StaffUserId == staffUserId || d.Name == staffUser.Department);
+
+            if (staffDepartment == null || staffDepartment.Id != grievance.DepartmentId)
+            {
+                TempData["ErrorMessage"] = "Selected staff member is not assigned to this grievance's department.";
                 return RedirectToAction(nameof(Detail), new { id = grievanceId });
             }
 

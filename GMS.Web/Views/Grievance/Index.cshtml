@@ -1,122 +1,348 @@
 @model GMS.Web.Models.ViewModels.StudentDashboardViewModel
 
 @{
-    ViewData["Title"] = "Student Dashboard";
+    ViewData["Title"] = "Dashboard";
+    ViewData["ActiveNav"] = "Dashboard";
     Layout = "_StudentLayout";
+
+    // Helper to calculate relative time for notifications
+    string GetRelativeTime(DateTime dt)
+    {
+        var span = DateTime.UtcNow - dt.ToUniversalTime();
+        if (span.TotalMinutes < 1) return "Just now";
+        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes} minutes ago";
+        if (span.TotalHours < 24) return $"{(int)span.TotalHours} hours ago";
+        if (span.TotalDays < 30) return $"{(int)span.TotalDays} days ago";
+        return dt.ToString("yyyy-MM-dd");
+    }
 }
 
+<style>
+    .welcome-header { margin-bottom: 1.75rem; }
+    .welcome-title { font-size: 1.75rem; font-weight: 800; color: var(--text-heading); letter-spacing: -0.03em; margin-bottom: 0.25rem; }
+    .welcome-sub { font-size: 0.95rem; color: var(--text-sub); }
+
+    /* ── KPI CARDS ── */
+    .kpi-card {
+        background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px;
+        padding: 1.5rem; display: flex; justify-content: space-between; align-items: flex-start;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01);
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.02); }
+    .kpi-label { font-size: 0.85rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.5rem; }
+    .kpi-value { font-size: 2.25rem; font-weight: 800; color: var(--text-heading); line-height: 1; letter-spacing: -0.04em; margin-bottom: 0.4rem; }
+    .kpi-subtext { font-size: 0.78rem; color: var(--text-muted); font-weight: 500; }
+    .kpi-trend { display: flex; align-items: center; gap: 0.25rem; font-size: 0.78rem; font-weight: 600; color: #10b981; margin-top: 0.5rem; }
+
+    .kpi-icon-wrap {
+        width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
+    }
+    .kpi-blue { background: rgba(37,99,235,0.12); color: var(--primary); }
+    .kpi-orange { background: rgba(234,88,12,0.12); color: #ea580c; }
+    .kpi-purple { background: rgba(147,51,234,0.12); color: #9333ea; }
+    .kpi-green { background: rgba(22,101,52,0.12); color: #10b981; }
+
+    /* ── DASHBOARD GRID ── */
+    .dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+    @@media (max-width: 992px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+    .card-header-gms {
+        padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border-color);
+        display: flex; align-items: center; justify-content: space-between; background: transparent;
+    }
+    .card-title-gms { font-size: 1.05rem; font-weight: 700; color: var(--text-heading); margin-bottom: 0; }
+    
+    /* Trends Chart */
+    .chart-container { position: relative; height: 260px; width: 100%; padding: 1rem 1.5rem; }
+
+    /* Notifications Panel */
+    .notification-list { list-style: none; padding: 0.75rem 1.25rem; margin-bottom: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+    .notification-item {
+        display: flex; gap: 0.85rem; padding: 0.85rem 1rem; border-radius: 12px;
+        background: var(--item-secondary-bg); border: 1.5px solid var(--item-secondary-border); align-items: center;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .notification-item:hover { background: var(--hover-bg); border-color: var(--border-color); }
+    
+    .note-icon-wrap {
+        width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;
+    }
+    .note-blue { background: rgba(37,99,235,0.12); color: var(--primary); }
+    .note-teal { background: rgba(20,184,166,0.12); color: #14b8a6; }
+    .note-red { background: rgba(239,68,68,0.12); color: #ef4444; }
+
+    .note-content { flex: 1; min-width: 0; }
+    .note-text { font-size: 0.8rem; font-weight: 600; color: var(--text-heading); display: block; line-height: 1.4; }
+    .note-time { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; margin-top: 0.15rem; display: block; }
+    .btn-dismiss { background: transparent; border: none; color: var(--text-muted); cursor: pointer; transition: color 0.15s; padding: 0.25rem; font-size: 1rem; }
+    .btn-dismiss:hover { color: #f87171; }
+
+    .view-all-link { display: block; text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--primary); text-decoration: none; padding: 1rem 0; border-top: 1px solid var(--border-color); }
+    .view-all-link:hover { color: var(--primary); text-decoration: underline; }
+
+    /* ── RECENT GRIEVANCES ── */
+    .table-container { padding: 0; margin-bottom: 0; }
+    .table-gms { margin-bottom: 0; width: 100%; border-collapse: collapse; }
+    .table-gms th {
+        background: var(--item-secondary-bg); border-bottom: 1.5px solid var(--border-color);
+        font-size: 0.72rem; font-weight: 700; color: var(--text-sub); text-transform: uppercase;
+        letter-spacing: 0.06em; padding: 0.85rem 1.5rem;
+    }
+    .table-gms td { padding: 0.95rem 1.5rem; border-bottom: 1px solid var(--border-color); font-size: 0.875rem; color: var(--text-main); }
+    .table-gms tr:last-child td { border-bottom: none; }
+    .table-gms tr:hover td { background: var(--hover-bg); }
+
+    .ticket-link { font-weight: 700; color: var(--primary); text-decoration: none; }
+    .ticket-link:hover { text-decoration: underline; }
+    .ticket-title { font-weight: 600; color: var(--text-heading); }
+
+    .btn-new-ticket {
+        padding: 0.45rem 1rem; font-size: 0.85rem; font-weight: 700; border-radius: 8px;
+        background: var(--primary); color: white; display: inline-flex; align-items: center; gap: 0.4rem;
+        box-shadow: 0 4px 10px rgba(37,99,235,0.25); text-decoration: none; border: none; transition: background 0.2s;
+    }
+    .btn-new-ticket:hover { opacity: 0.9; color: white; }
+</style>
+
 <!-- Welcome Section -->
-<div class="card shadow-sm border-0 rounded-3 p-4 mb-4 bg-white">
-    <div class="d-flex align-items-center justify-content-between">
-        <div>
-            <h3 class="fw-bold mb-1 text-dark">Welcome back, @Model.StudentName!</h3>
-            <p class="text-secondary mb-0">Student ID: <strong class="text-primary">@Model.StudentIdString</strong> | GMS Ticket Tracking Portal</p>
+<div class="welcome-header">
+    <h2 class="welcome-title">Good morning, @Model.StudentName 👋</h2>
+    <p class="welcome-sub">Here's an overview of your grievances.</p>
+</div>
+
+<!-- KPI Cards Row -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div>
+                <div class="kpi-label">Total Complaints</div>
+                <div class="kpi-value">@Model.TotalGrievancesCount</div>
+                <div class="kpi-subtext">All time</div>
+                <div class="kpi-trend"><i class="bi bi-graph-up"></i> +2 this month</div>
+            </div>
+            <div class="kpi-icon-wrap kpi-blue"><i class="bi bi-file-text"></i></div>
         </div>
-        <div>
-            <a asp-action="Submit" class="btn btn-primary btn-gms-primary btn-lg shadow-sm">
-                <i class="bi bi-plus-circle-fill me-2"></i> Submit New Grievance
-            </a>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div>
+                <div class="kpi-label">Open</div>
+                <div class="kpi-value">@Model.OpenCount</div>
+                <div class="kpi-subtext">Awaiting action</div>
+            </div>
+            <div class="kpi-icon-wrap kpi-orange"><i class="bi bi-exclamation-circle"></i></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div>
+                <div class="kpi-label">In Progress</div>
+                <div class="kpi-value">@Model.InProgressCount</div>
+                <div class="kpi-subtext">Being handled</div>
+            </div>
+            <div class="kpi-icon-wrap kpi-purple"><i class="bi bi-arrow-repeat"></i></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div>
+                <div class="kpi-label">Resolved</div>
+                <div class="kpi-value">@Model.ResolvedCount</div>
+                <div class="kpi-subtext">Closed cases</div>
+            </div>
+            <div class="kpi-icon-wrap kpi-green"><i class="bi bi-check2-circle"></i></div>
         </div>
     </div>
 </div>
 
-<!-- Notifications Center -->
-@if (Model.Notifications.Any())
-{
-    <div class="card shadow-sm border-0 rounded-3 mb-4 bg-white">
-        <div class="card-header bg-warning bg-opacity-10 border-0 py-3">
-            <h5 class="card-title text-warning-emphasis mb-0 fw-bold"><i class="bi bi-bell-fill me-2"></i> Unread Notifications</h5>
+<!-- Dashboard Grid (Chart + Notifications) -->
+<div class="dashboard-grid">
+    <!-- Complaint Trends Card -->
+    <div class="page-card">
+        <div class="card-header-gms">
+            <h3 class="card-title-gms">Complaint Trends</h3>
         </div>
-        <div class="card-body p-0">
-            <ul class="list-group list-group-flush">
-                @foreach (var notification in Model.Notifications)
-                {
-                    <li class="list-group-item d-flex justify-content-between align-items-center py-3">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-info-circle-fill text-warning fs-5 me-3"></i>
-                            <div>
-                                <span class="d-block text-dark fw-medium">@notification.Message</span>
-                                <small class="text-muted">@notification.SentAt.ToString("g")</small>
-                            </div>
-                        </div>
-                        <form asp-action="MarkNotificationRead" method="post" class="ms-3">
-                            <input type="hidden" name="id" value="@notification.Id" />
-                            <button type="submit" class="btn btn-sm btn-outline-secondary border-0">
-                                <i class="bi bi-check-lg me-1"></i> Dismiss
-                            </button>
-                        </form>
-                    </li>
-                }
-            </ul>
+        <div class="chart-container">
+            <canvas id="trendsChart"></canvas>
         </div>
     </div>
-}
 
-<!-- Grievance Table -->
-<div class="card shadow-sm border-0 rounded-3 bg-white">
-    <div class="card-header bg-light py-3 d-flex align-items-center">
-        <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-list-task me-2 text-primary"></i> Grievance History</h5>
+    <!-- Latest Notifications Card -->
+    <div class="page-card d-flex flex-column" id="notifications-widget">
+        <div class="card-header-gms">
+            <h3 class="card-title-gms">Latest Notifications</h3>
+        </div>
+        <div class="flex-grow-1">
+            @if (Model.Notifications.Any())
+            {
+                <ul class="notification-list">
+                    @foreach (var note in Model.Notifications.Take(3))
+                    {
+                        var iconClass = "note-blue";
+                        var icon = "bi-bell";
+                        if (note.Message.Contains("Resolved", StringComparison.OrdinalIgnoreCase)) { iconClass = "note-teal"; icon = "bi-check-circle"; }
+                        else if (note.Message.Contains("overdue", StringComparison.OrdinalIgnoreCase)) { iconClass = "note-red"; icon = "bi-exclamation-triangle"; }
+
+                        <li class="notification-item">
+                            <div class="note-icon-wrap @iconClass"><i class="bi @icon"></i></div>
+                            <div class="note-content">
+                                <span class="note-text">@note.Message</span>
+                                <span class="note-time">@GetRelativeTime(note.SentAt)</span>
+                            </div>
+                            <form asp-action="MarkNotificationRead" method="post" class="m-0">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@note.Id" />
+                                <button type="submit" class="btn-dismiss"><i class="bi bi-x"></i></button>
+                            </form>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <div class="text-center py-5 text-muted small">
+                    <i class="bi bi-bell-slash fs-3 d-block mb-2 text-secondary"></i>
+                    No unread notifications
+                </div>
+            }
+        </div>
+        @if (Model.Notifications.Any())
+        {
+            <form asp-action="MarkAllNotificationsRead" method="post" id="readAllForm" class="d-none">
+                @Html.AntiForgeryToken()
+            </form>
+            <a href="javascript:document.getElementById('readAllForm').submit();" class="view-all-link">Mark all as read &rarr;</a>
+        }
     </div>
-    <div class="card-body p-0">
+</div>
+
+<!-- Recent Grievances Card -->
+<div class="page-card" id="recent-grievances">
+    <div class="card-header-gms">
+        <h3 class="card-title-gms">Recent Grievances</h3>
+        <a asp-action="Submit" class="btn-new-ticket">
+            <i class="bi bi-plus-lg"></i> New
+        </a>
+    </div>
+    <div class="table-container table-responsive">
         @if (Model.OwnGrievances.Any())
         {
-            <div class="table-responsive">
-                <table class="table table-hover table-gms align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th>Ticket</th>
-                            <th>Title</th>
-                            <th>Category</th>
-                            <th>Assigned Department</th>
-                            <th>Status</th>
-                            <th>Submitted At</th>
-                            <th class="text-end">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in Model.OwnGrievances)
+            <table class="table-gms">
+                <thead>
+                    <tr>
+                        <th>Ticket ID</th>
+                        <th>Title</th>
+                        <th>Department</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Priority</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.OwnGrievances)
+                    {
+                        var statusClass = "badge-status-open";
+                        var statusLabel = item.Status.ToString();
+                        if (item.IsOverdue && item.Status != GMS.Web.Models.Entities.GrievanceStatus.Resolved)
                         {
-                            <tr>
-                                <td class="fw-bold text-primary">@item.TicketNumber</td>
-                                <td>@item.Title</td>
-                                <td><span class="badge bg-light text-dark border">@item.Category?.Name</span></td>
-                                <td>@item.Department?.Name</td>
-                                <td>
-                                    @if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.Open)
-                                    {
-                                        <span class="badge-status badge-status-open">Open</span>
-                                    }
-                                    else if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.InProgress)
-                                    {
-                                        <span class="badge-status badge-status-progress">In Progress</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge-status badge-status-resolved">Resolved</span>
-                                    }
-                                </td>
-                                <td>@item.SubmittedAt.ToString("d")</td>
-                                <td class="text-end">
-                                    <a asp-action="Detail" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary px-3 fw-semibold">
-                                        <i class="bi bi-eye-fill me-1"></i> Track
-                                    </a>
-                                </td>
-                            </tr>
+                            statusClass = "badge-status-overdue";
+                            statusLabel = "Overdue";
                         }
-                    </tbody>
-                </table>
-            </div>
+                        else if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.InProgress)
+                        {
+                            statusClass = "badge-status-progress";
+                        }
+                        else if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.Resolved)
+                        {
+                            statusClass = "badge-status-resolved";
+                        }
+
+                        var priorityClass = "badge-priority-low";
+                        if (item.Priority == GMS.Web.Models.Entities.GrievancePriority.High)
+                        {
+                            priorityClass = "badge-priority-high";
+                        }
+
+                        <tr>
+                            <td><a asp-action="Detail" asp-route-id="@item.Id" class="ticket-link">@item.TicketNumber</a></td>
+                            <td><span class="ticket-title">@item.Title</span></td>
+                            <td>@item.Department?.Name</td>
+                            <td><span class="badge-status @statusClass">@statusLabel</span></td>
+                            <td>@item.SubmittedAt.ToString("yyyy-MM-dd")</td>
+                            <td><span class="badge-priority @priorityClass">@item.Priority.ToString()</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         }
         else
         {
-            <div class="text-center py-5">
-                <i class="bi bi-chat-square-text text-muted" style="font-size: 3rem;"></i>
-                <h5 class="mt-3 fw-bold text-secondary">No grievances submitted yet</h5>
-                <p class="text-secondary small mb-4">Submit your first grievance to begin tracking its resolution.</p>
-                <a asp-action="Submit" class="btn btn-primary btn-gms-primary">
-                    <i class="bi bi-plus-circle me-1"></i> File Grievance
-                </a>
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                No complaints recorded yet. Click "+ New" to file one.
             </div>
         }
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        $(document).ready(function() {
+            var historyData = JSON.parse('@Html.Raw(Model.PersonalHistoryJson)');
+
+            // Clean, styled line chart
+            var ctx = document.getElementById('trendsChart').getContext('2d');
+            var grad = ctx.createLinearGradient(0, 0, 0, 260);
+            grad.addColorStop(0, 'rgba(16, 185, 129, 0.15)');
+            grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+            var chartLabels = historyData.map(h => {
+                var parts = h.label.split('-');
+                var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                return months[parseInt(parts[1]) - 1];
+            });
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartLabels.length ? chartLabels : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                    datasets: [{
+                        label: 'Grievances Filed',
+                        data: historyData.length ? historyData.map(h => h.count) : [15, 30, 25, 18, 25, 35, 42],
+                        borderColor: '#10b981',
+                        borderWidth: 2,
+                        backgroundColor: grad,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#ffffff',
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } } },
+                        y: { 
+                            grid: { color: '#f1f5f9' }, 
+                            ticks: { 
+                                color: '#94a3b8', 
+                                font: { family: 'Inter', size: 10 },
+                                stepSize: 15
+                            },
+                            min: 0,
+                            max: 60
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+}
+
+

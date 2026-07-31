@@ -1,37 +1,332 @@
+@model GMS.Web.Models.Entities.Grievance
+
 @{
-    ViewData["Title"] = "Track Ticket";
+    ViewData["Title"] = "Track Complaint";
+    ViewData["ActiveNav"] = "TrackComplaint";
+    Layout = "_StudentLayout";
+
+    var ticketQuery = Context.Request.Query["ticketNumber"].ToString();
+    if (string.IsNullOrWhiteSpace(ticketQuery) && Model != null)
+    {
+        ticketQuery = Model.TicketNumber;
+    }
+
+    // Status progress percentage
+    int progressPct = 25;
+    if (Model != null)
+    {
+        if (Model.Status == GMS.Web.Models.Entities.GrievanceStatus.InProgress)
+        {
+            progressPct = 75;
+        }
+        else if (Model.Status == GMS.Web.Models.Entities.GrievanceStatus.Resolved)
+        {
+            progressPct = 100;
+        }
+    }
 }
 
-<div class="row justify-content-center py-5">
-    <div class="col-md-7 col-lg-6">
-        <div class="card shadow-lg border-0 rounded-3 overflow-hidden bg-white">
-            <div class="card-header bg-dark text-white text-center py-4">
-                <h4 class="mb-0 fw-bold"><i class="bi bi-search me-2 text-primary"></i> Track Grievance Status</h4>
-                <p class="small text-muted mb-0 mt-1">Review live resolution progress using your ticket reference</p>
+<style>
+    .tk-wrap {
+        max-width: 960px;
+        margin: 0;
+        padding: 0 0 3rem 0;
+    }
+
+    /* Head */
+    .tk-head { margin-top: 0.25rem; margin-bottom: 1.75rem; text-align: left; }
+    .tk-head h1 { font-size: 1.65rem; font-weight: 800; color: var(--text-heading); letter-spacing: -0.02em; margin-bottom: 0.35rem; }
+    .tk-head p  { font-size: 0.9rem; color: var(--text-sub); margin: 0; }
+
+    /* Search Box Card */
+    .tk-search-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 1.5rem 1.75rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .tk-search-form {
+        display: flex; align-items: center; gap: 1rem;
+    }
+    .tk-search-input-wrap {
+        position: relative; flex: 1; display: flex; align-items: center;
+    }
+    .tk-search-prefix {
+        position: absolute; left: 1.25rem; font-weight: 700; color: var(--text-muted); font-size: 1rem; pointer-events: none;
+    }
+    .tk-search-input {
+        width: 100%;
+        padding: 0.8rem 1.25rem 0.8rem 2.6rem;
+        border: 1.5px solid var(--input-border);
+        background: var(--input-bg);
+        border-radius: 999px;
+        font-size: 0.925rem;
+        font-weight: 600;
+        color: var(--input-text);
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        box-sizing: border-box;
+    }
+    .tk-search-input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+    }
+    .tk-search-input::placeholder { color: var(--text-muted); font-weight: 500; }
+    .tk-search-btn {
+        background: var(--primary); color: white; border: none;
+        border-radius: 999px; padding: 0.8rem 2.5rem;
+        font-size: 0.925rem; font-weight: 700; cursor: pointer;
+        transition: background 0.2s; white-space: nowrap;
+    }
+    .tk-search-btn:hover { opacity: 0.9; }
+
+    /* Result Card 1: Summary */
+    .tk-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 2rem 2.25rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .tk-card-top {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 0.6rem;
+    }
+    .tk-ticket-no {
+        font-size: 0.875rem; font-weight: 800; color: var(--primary); letter-spacing: 0.04em;
+    }
+    .tk-title {
+        font-size: 1.35rem; font-weight: 800; color: var(--text-heading); line-height: 1.3;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Progress bar */
+    .tk-progress-hdr {
+        display: flex; align-items: center; justify-content: space-between;
+        font-size: 0.8rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.5rem;
+    }
+    .tk-progress-bg {
+        width: 100%; height: 8px; background: var(--border-color); border-radius: 999px; overflow: hidden;
+        margin-bottom: 1.75rem;
+    }
+    .tk-progress-bar {
+        height: 100%; background: var(--primary); border-radius: 999px; transition: width 0.4s ease;
+    }
+
+    /* 3 Metric boxes */
+    .tk-metrics {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;
+    }
+    @@media (max-width: 700px) { .tk-metrics { grid-template-columns: 1fr; } }
+
+    .tk-metric-box {
+        background: var(--item-secondary-bg); border-radius: 12px; padding: 1.1rem 1.25rem;
+        display: flex; align-items: center; gap: 1rem; border: 1px solid var(--border-color);
+    }
+    .tk-metric-icon {
+        width: 42px; height: 42px; border-radius: 10px; background: rgba(37,99,235,0.12); color: var(--primary);
+        display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0;
+    }
+    .tk-metric-lbl {
+        font-size: 0.68rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.2rem;
+    }
+    .tk-metric-val {
+        font-size: 0.88rem; font-weight: 700; color: var(--text-heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* Status Pill Badges */
+    .sp { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.28rem 0.85rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+    .sp::before { content: ''; width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+    .sp-open { background: #eff6ff; color: #1d4ed8; } .sp-open::before { background: #1d4ed8; }
+    .sp-progress { background: #fffbeb; color: #b45309; } .sp-progress::before { background: #b45309; }
+    .sp-resolved { background: #f0fdf4; color: #15803d; } .sp-resolved::before { background: #15803d; }
+
+    /* Activity Timeline */
+    .tk-tl-title {
+        font-size: 1.1rem; font-weight: 800; color: var(--text-heading); margin-bottom: 1.75rem;
+    }
+    .tk-tl-list {
+        position: relative; padding-left: 2.5rem; display: flex; flex-direction: column; gap: 2rem;
+    }
+    .tk-tl-list::before {
+        content: ''; position: absolute; left: 17px; top: 12px; bottom: 12px; width: 2px; background: var(--border-color);
+    }
+    .tk-tl-item {
+        position: relative;
+    }
+    .tk-tl-icon {
+        position: absolute; left: -2.5rem; top: 0; width: 36px; height: 36px; border-radius: 50%;
+        background: var(--card-bg); border: 2px solid var(--border-color); display: flex; align-items: center; justify-content: center;
+        font-size: 0.95rem; color: var(--text-muted); z-index: 1; transform: translateX(-50%);
+    }
+    .tk-tl-item.done .tk-tl-icon {
+        background: var(--primary); border-color: var(--primary); color: white;
+    }
+    .tk-tl-hdr {
+        font-size: 0.9rem; font-weight: 700; color: var(--text-heading); margin-bottom: 0.2rem;
+    }
+    .tk-tl-date {
+        font-size: 0.76rem; color: var(--text-muted); margin-bottom: 0.4rem;
+    }
+    .tk-tl-desc {
+        font-size: 0.84rem; color: var(--text-main); line-height: 1.55;
+    }
+
+    .tk-err {
+        background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #ef4444;
+        border-radius: 12px; padding: 1rem 1.25rem; font-size: 0.875rem; font-weight: 600;
+        margin-bottom: 1.75rem; text-align: center;
+    }
+</style>
+
+<div class="tk-wrap">
+
+    
+    <div class="tk-head">
+        <h1>Track Your Complaint</h1>
+        <p>Enter your ticket number to check the status.</p>
+    </div>
+
+    
+    <div class="tk-search-card">
+        <form asp-action="Track" method="get" class="tk-search-form">
+            <div class="tk-search-input-wrap">
+                <span class="tk-search-prefix">#</span>
+                <input type="text" name="ticketNumber" class="tk-search-input"
+                       placeholder="GMS-2024-001" value="@ticketQuery" required autocomplete="off" />
             </div>
-            
-            <div class="card-body p-4 text-center">
-                <p class="text-secondary small mb-4">
-                    Enter the GMS ticket number (e.g., <strong>GMS-2026-00001</strong>) provided on confirmation pages or automated receipt emails.
-                </p>
+            <button type="submit" class="tk-search-btn">Search</button>
+        </form>
+    </div>
 
-                @if (ViewBag.Error != null)
+    @if (ViewBag.Error != null)
+    {
+        <div class="tk-err">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @ViewBag.Error
+        </div>
+    }
+
+    @if (Model != null)
+    {
+        
+        <div class="tk-card">
+            <div class="tk-card-top">
+                <span class="tk-ticket-no">@Model.TicketNumber</span>
+                @if (Model.Status == GMS.Web.Models.Entities.GrievanceStatus.Open)
                 {
-                    <div class="alert alert-danger border-0 bg-danger bg-opacity-10 text-danger-emphasis mb-3 py-2 text-start">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i> @ViewBag.Error
-                    </div>
+                    <span class="sp sp-open">Open</span>
                 }
+                else if (Model.Status == GMS.Web.Models.Entities.GrievanceStatus.InProgress)
+                {
+                    <span class="sp sp-progress">In Progress</span>
+                }
+                else
+                {
+                    <span class="sp sp-resolved">Resolved</span>
+                }
+            </div>
 
-                <form asp-action="Track" method="get">
-                    <div class="mb-4">
-                        <input type="text" name="ticketNumber" class="form-control form-control-lg form-control-gms text-center fw-bold" placeholder="GMS-YYYY-XXXXX" required />
+            <div class="tk-title">@Model.Title</div>
+
+            <div class="tk-progress-hdr">
+                <span>Progress</span>
+                <span>@progressPct%</span>
+            </div>
+            <div class="tk-progress-bg">
+                <div class="tk-progress-bar" style="width: @(progressPct)%"></div>
+            </div>
+
+            <div class="tk-metrics">
+                <div class="tk-metric-box">
+                    <div class="tk-metric-icon"><i class="bi bi-file-earmark-text"></i></div>
+                    <div>
+                        <div class="tk-metric-lbl">Department</div>
+                        <div class="tk-metric-val">@(Model.Department?.Name ?? "General Admin")</div>
                     </div>
-
-                    <button type="submit" class="btn btn-primary btn-gms-primary w-100 py-2.5">
-                        <i class="bi bi-search me-1"></i> Check Ticket Status
-                    </button>
-                </form>
+                </div>
+                <div class="tk-metric-box">
+                    <div class="tk-metric-icon"><i class="bi bi-person"></i></div>
+                    <div>
+                        <div class="tk-metric-lbl">Assigned Officer</div>
+                        <div class="tk-metric-val">@(Model.AssignedStaffUser?.FullName ?? "Dr. Khalid Hassan")</div>
+                    </div>
+                </div>
+                <div class="tk-metric-box">
+                    <div class="tk-metric-icon"><i class="bi bi-calendar-event"></i></div>
+                    <div>
+                        <div class="tk-metric-lbl">Est. Resolution</div>
+                        <div class="tk-metric-val">@(Model.DueDate.HasValue ? Model.DueDate.Value.ToString("MMM d, yyyy") : Model.SubmittedAt.AddDays(7).ToString("MMM d, yyyy"))</div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+
+        
+        <div class="tk-card">
+            <div class="tk-tl-title">Activity Timeline</div>
+            <div class="tk-tl-list">
+                
+                <div class="tk-tl-item done">
+                    <div class="tk-tl-icon"><i class="bi bi-check-lg"></i></div>
+                    <div class="tk-tl-hdr">Complaint Submitted</div>
+                    <div class="tk-tl-date">@Model.SubmittedAt.ToString("MMM d, HH:mm")</div>
+                    <div class="tk-tl-desc">Ticket @Model.TicketNumber created automatically.</div>
+                </div>
+
+                
+                <div class="tk-tl-item @(!string.IsNullOrEmpty(Model.AssignedStaffUserId) || Model.Status != GMS.Web.Models.Entities.GrievanceStatus.Open ? "done" : "")">
+                    <div class="tk-tl-icon">
+                        @if (!string.IsNullOrEmpty(Model.AssignedStaffUserId) || Model.Status != GMS.Web.Models.Entities.GrievanceStatus.Open)
+                        {
+                            <i class="bi bi-check-lg"></i>
+                        }
+                        else
+                        {
+                            <i class="bi bi-clock"></i>
+                        }
+                    </div>
+                    <div class="tk-tl-hdr">Assigned to @(Model.AssignedStaffUser?.FullName ?? "Dr. Khalid Hassan")</div>
+                    <div class="tk-tl-date">@Model.SubmittedAt.AddHours(2).ToString("MMM d, HH:mm")</div>
+                    <div class="tk-tl-desc">Routed to @(Model.Department?.Name ?? "Department") department.</div>
+                </div>
+
+                
+                <div class="tk-tl-item @(Model.Status == GMS.Web.Models.Entities.GrievanceStatus.InProgress || Model.Status == GMS.Web.Models.Entities.GrievanceStatus.Resolved ? "done" : "")">
+                    <div class="tk-tl-icon">
+                        @if (Model.Status == GMS.Web.Models.Entities.GrievanceStatus.InProgress || Model.Status == GMS.Web.Models.Entities.GrievanceStatus.Resolved)
+                        {
+                            <i class="bi bi-check-lg"></i>
+                        }
+                        else
+                        {
+                            <i class="bi bi-clock"></i>
+                        }
+                    </div>
+                    <div class="tk-tl-hdr">Under Investigation</div>
+                    <div class="tk-tl-date">@Model.LastUpdatedAt.ToString("MMM d, HH:mm")</div>
+                    <div class="tk-tl-desc">Officer reviewing CCTV and condition logs.</div>
+                </div>
+
+                
+                <div class="tk-tl-item @(Model.Status == GMS.Web.Models.Entities.GrievanceStatus.Resolved ? "done" : "")">
+                    <div class="tk-tl-icon">
+                        @if (Model.Status == GMS.Web.Models.Entities.GrievanceStatus.Resolved)
+                        {
+                            <i class="bi bi-check-lg"></i>
+                        }
+                        else
+                        {
+                            <i class="bi bi-clock"></i>
+                        }
+                    </div>
+                    <div class="tk-tl-hdr">@(Model.Status == GMS.Web.Models.Entities.GrievanceStatus.Resolved ? "Complaint Resolved" : "Resolution Pending")</div>
+                    <div class="tk-tl-date">Expected @(Model.DueDate.HasValue ? Model.DueDate.Value.ToString("MMM d") : Model.SubmittedAt.AddDays(7).ToString("MMM d"))</div>
+                    <div class="tk-tl-desc">@(Model.Status == GMS.Web.Models.Entities.GrievanceStatus.Resolved ? Model.ResolutionNotes ?? "Ticket resolved." : "Awaiting final decision.")</div>
+                </div>
+            </div>
+        </div>
+    }
 </div>

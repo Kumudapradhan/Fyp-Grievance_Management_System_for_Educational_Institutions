@@ -20,5 +20,7 @@ namespace GMS.Web.Models.ViewModels
 
         [Display(Name = "Assigned Department")]
         public string? Department { get; set; }
+
+        public string? ProfilePicturePath { get; set; }
     }
 }

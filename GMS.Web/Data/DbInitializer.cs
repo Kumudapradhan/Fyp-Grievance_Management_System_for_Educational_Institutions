@@ -207,6 +207,208 @@ namespace GMS.Web.Data
                 await SeedSubcategoryIfNotExists(context, "Shuttle Bus Schedule", adminCat.Id);
             }
 
+            // 8. Seed Default Student, Staff and Mock Grievances
+            var studentEmail = "student@gms.edu";
+            var student = await userManager.FindByEmailAsync(studentEmail);
+            if (student == null)
+            {
+                student = new ApplicationUser
+                {
+                    UserName = studentEmail,
+                    Email = studentEmail,
+                    FullName = "Aisha Rahman",
+                    StudentId = "NP069687",
+                    Programme = "BSc IT (Hons)",
+                    EmailConfirmed = true,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await userManager.CreateAsync(student, "Student@123");
+                await userManager.AddToRoleAsync(student, "Student");
+            }
+
+            var staffEmail = "staff@gms.edu";
+            var staff = await userManager.FindByEmailAsync(staffEmail);
+            if (staff == null)
+            {
+                staff = new ApplicationUser
+                {
+                    UserName = staffEmail,
+                    Email = staffEmail,
+                    FullName = "Dr. Khalid Hassan",
+                    EmailConfirmed = true,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await userManager.CreateAsync(staff, "Staff@123");
+                await userManager.AddToRoleAsync(staff, "Staff");
+            }
+
+            // Assign staff user to General Administration department
+            var adminDeptDb = await context.Departments.FirstOrDefaultAsync(d => d.Name == "General Administration");
+            if (adminDeptDb != null && adminDeptDb.StaffUserId == null)
+            {
+                adminDeptDb.StaffUserId = staff.Id;
+                await context.SaveChangesAsync();
+            }
+
+            // Seed mock grievance
+            var mockGrievanceTicket = "GMS-2024-001";
+            var mockGrievance = await context.Grievances.FirstOrDefaultAsync(g => g.TicketNumber == mockGrievanceTicket);
+            if (mockGrievance == null)
+            {
+                var welfareCatDb = await context.Categories.FirstOrDefaultAsync(c => c.Name == "Welfare / Personal Issue");
+
+                mockGrievance = new Grievance
+                {
+                    TicketNumber = mockGrievanceTicket,
+                    Title = "Library book damage claim not processed",
+                    Description = "The library claimed that a book returned by the student was damaged. However, the student disputes this and requests a formal review of the condition report and associated records from the date of return.",
+                    CategoryId = welfareCatDb?.Id ?? 1,
+                    DepartmentId = adminDeptDb?.Id ?? 1,
+                    StudentId = student.Id,
+                    Status = GrievanceStatus.InProgress,
+                    Priority = GrievancePriority.Low,
+                    IncidentDate = new DateTime(2024, 7, 1),
+                    SubmittedAt = new DateTime(2024, 7, 1, 9, 14, 0),
+                    LastUpdatedAt = new DateTime(2024, 7, 2, 10, 0, 0),
+                    AssignedStaffUserId = staff.Id
+                };
+
+                context.Grievances.Add(mockGrievance);
+                await context.SaveChangesAsync();
+
+                // Add attachments
+                context.GrievanceAttachments.Add(new GrievanceAttachment
+                {
+                    GrievanceId = mockGrievance.Id,
+                    FileName = "return_receipt.pdf",
+                    FilePath = "/uploads/return_receipt.pdf",
+                    FileSize = 104 * 1024,
+                    UploadedAt = new DateTime(2024, 7, 1, 9, 14, 0)
+                });
+                context.GrievanceAttachments.Add(new GrievanceAttachment
+                {
+                    GrievanceId = mockGrievance.Id,
+                    FileName = "condition_photo.png",
+                    FilePath = "/uploads/condition_photo.png",
+                    FileSize = 245 * 1024,
+                    UploadedAt = new DateTime(2024, 7, 1, 9, 14, 0)
+                });
+
+                // Add status history
+                context.GrievanceStatusHistories.Add(new GrievanceStatusHistory
+                {
+                    GrievanceId = mockGrievance.Id,
+                    OldStatus = GrievanceStatus.Open,
+                    NewStatus = GrievanceStatus.InProgress,
+                    ChangedAt = new DateTime(2024, 7, 2, 10, 0, 0),
+                    ChangedByUserId = staff.Id
+                });
+
+                // Add comments
+                context.Comments.Add(new Comment
+                {
+                    GrievanceId = mockGrievance.Id,
+                    UserId = student.Id,
+                    Content = "I have the original receipt showing the book was in good condition when I returned it.",
+                    CreatedAt = new DateTime(2024, 7, 1, 12, 0, 0)
+                });
+                context.Comments.Add(new Comment
+                {
+                    GrievanceId = mockGrievance.Id,
+                    UserId = staff.Id,
+                    Content = "We are reviewing the CCTV footage and the condition log. Will update you within 48 hours.",
+                    CreatedAt = new DateTime(2024, 7, 2, 14, 0, 0)
+                });
+
+                await context.SaveChangesAsync();
+            }
+
+            // Copy mock grievance to all other students in the database so any logged-in student has it
+            var allStudents = await userManager.GetUsersInRoleAsync("Student");
+            foreach (var st in allStudents)
+            {
+                var studentHasGrievance = await context.Grievances.AnyAsync(g => g.StudentId == st.Id);
+                if (!studentHasGrievance)
+                {
+                    var stTicket = "GMS-2024-002";
+                    int count = 2;
+                    while (await context.Grievances.AnyAsync(g => g.TicketNumber == stTicket))
+                    {
+                        stTicket = $"GMS-2024-{count:D3}";
+                        count++;
+                    }
+
+                    var welfareCatDb = await context.Categories.FirstOrDefaultAsync(c => c.Name == "Welfare / Personal Issue");
+
+                    var stGrievance = new Grievance
+                    {
+                        TicketNumber = stTicket,
+                        Title = "Library book damage claim not processed",
+                        Description = "The library claimed that a book returned by the student was damaged. However, the student disputes this and requests a formal review of the condition report and associated records from the date of return.",
+                        CategoryId = welfareCatDb?.Id ?? 1,
+                        DepartmentId = adminDeptDb?.Id ?? 1,
+                        StudentId = st.Id,
+                        Status = GrievanceStatus.InProgress,
+                        Priority = GrievancePriority.Low,
+                        IncidentDate = new DateTime(2024, 7, 1),
+                        SubmittedAt = new DateTime(2024, 7, 1, 9, 14, 0),
+                        LastUpdatedAt = new DateTime(2024, 7, 2, 10, 0, 0),
+                        AssignedStaffUserId = staff.Id
+                    };
+
+                    context.Grievances.Add(stGrievance);
+                    await context.SaveChangesAsync();
+
+                    // Add attachments
+                    context.GrievanceAttachments.Add(new GrievanceAttachment
+                    {
+                        GrievanceId = stGrievance.Id,
+                        FileName = "return_receipt.pdf",
+                        FilePath = "/uploads/return_receipt.pdf",
+                        FileSize = 104 * 1024,
+                        UploadedAt = new DateTime(2024, 7, 1, 9, 14, 0)
+                    });
+                    context.GrievanceAttachments.Add(new GrievanceAttachment
+                    {
+                        GrievanceId = stGrievance.Id,
+                        FileName = "condition_photo.png",
+                        FilePath = "/uploads/condition_photo.png",
+                        FileSize = 245 * 1024,
+                        UploadedAt = new DateTime(2024, 7, 1, 9, 14, 0)
+                    });
+
+                    // Add status history
+                    context.GrievanceStatusHistories.Add(new GrievanceStatusHistory
+                    {
+                        GrievanceId = stGrievance.Id,
+                        OldStatus = GrievanceStatus.Open,
+                        NewStatus = GrievanceStatus.InProgress,
+                        ChangedAt = new DateTime(2024, 7, 2, 10, 0, 0),
+                        ChangedByUserId = staff.Id
+                    });
+
+                    // Add comments
+                    context.Comments.Add(new Comment
+                    {
+                        GrievanceId = stGrievance.Id,
+                        UserId = st.Id,
+                        Content = "I have the original receipt showing the book was in good condition when I returned it.",
+                        CreatedAt = new DateTime(2024, 7, 1, 12, 0, 0)
+                    });
+                    context.Comments.Add(new Comment
+                    {
+                        GrievanceId = stGrievance.Id,
+                        UserId = staff.Id,
+                        Content = "We are reviewing the CCTV footage and the condition log. Will update you within 48 hours.",
+                        CreatedAt = new DateTime(2024, 7, 2, 14, 0, 0)
+                    });
+
+                    await context.SaveChangesAsync();
+                }
+            }
+
             await context.SaveChangesAsync();
         }
 

@@ -25,7 +25,7 @@
 body {
     font-family: var(--font-family);
     background-color: #f1f5f9;
-    color: #334155;
+    color: var(--bs-body-color);
     min-height: 100vh;
     display: flex;
     flex-direction: column;

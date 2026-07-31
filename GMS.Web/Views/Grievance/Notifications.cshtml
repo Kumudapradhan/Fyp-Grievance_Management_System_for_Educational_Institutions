@@ -1,0 +1,225 @@
+@model IEnumerable<GMS.Web.Models.Entities.Notification>
+
+@{
+    ViewData["Title"] = "Notifications";
+    ViewData["ActiveNav"] = "Notifications";
+    Layout = "_StudentLayout";
+
+    var allNotes    = Model?.ToList() ?? new List<GMS.Web.Models.Entities.Notification>();
+    var unreadCount = allNotes.Count(n => !n.IsRead);
+    var totalCount  = allNotes.Count;
+
+    string TimeAgo(DateTime dt)
+    {
+        var span = DateTime.UtcNow - dt;
+        if (span.TotalMinutes < 1)  return "Just now";
+        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}m ago";
+        if (span.TotalHours   < 24) return $"{(int)span.TotalHours}h ago";
+        if (span.TotalDays    < 2)  return "Yesterday";
+        if (span.TotalDays    < 30) return $"{(int)span.TotalDays}d ago";
+        return dt.ToString("MMM d");
+    }
+
+    string IconClass(GMS.Web.Models.Entities.NotificationType t) => t switch
+    {
+        GMS.Web.Models.Entities.NotificationType.Overdue       => "nt-icon-alert bi bi-exclamation-triangle",
+        GMS.Web.Models.Entities.NotificationType.RepetitiveFlag=> "nt-icon-alert bi bi-exclamation-triangle",
+        GMS.Web.Models.Entities.NotificationType.Submission     => "nt-icon-send  bi bi-send-check",
+        _                                                        => "nt-icon-bell  bi bi-bell"
+    };
+}
+
+<style>
+    /* ── Wrap ── */
+    .nt-wrap {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 0.5rem 0 3rem;
+    }
+
+    /* ── Header ── */
+    .nt-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+    }
+    .nt-title-row { display: flex; align-items: center; gap: 0.65rem; }
+    .nt-title {
+        font-size: 1.5rem; font-weight: 800; color: #0f172a;
+        letter-spacing: -0.025em; margin: 0;
+    }
+    .nt-badge {
+        background: #2563eb; color: white;
+        font-size: 0.72rem; font-weight: 700;
+        border-radius: 999px; padding: 0.15rem 0.6rem;
+        line-height: 1.4;
+    }
+    .nt-sub { font-size: 0.83rem; color: #94a3b8; margin: 0.25rem 0 0; }
+
+    .btn-mark-all {
+        flex-shrink: 0;
+        align-self: center;
+        background: #eff6ff; border: none;
+        color: #2563eb; font-size: 0.82rem; font-weight: 700;
+        padding: 0.45rem 1.1rem; border-radius: 999px;
+        cursor: pointer; transition: background 0.15s;
+        text-decoration: none;
+    }
+    .btn-mark-all:hover { background: #dbeafe; color: #1d4ed8; }
+
+    /* ── List ── */
+    .nt-list { display: flex; flex-direction: column; gap: 0.65rem; }
+
+    .nt-item {
+        display: flex; align-items: center; gap: 1rem;
+        padding: 1rem 1.25rem;
+        border-radius: 14px;
+        border: 1.5px solid #e2e8f0;
+        text-decoration: none;
+        background: white;
+        transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+        position: relative;
+    }
+    .nt-item:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+        border-color: #c7d2fe;
+    }
+    .nt-item.unread {
+        background: #f8faff;
+        border-color: #dbeafe;
+    }
+
+    /* ── Icon circle ── */
+    .nt-icon {
+        width: 44px; height: 44px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.1rem; flex-shrink: 0;
+    }
+    .nt-icon-bell  { background: #dbeafe; color: #2563eb; }
+    .nt-icon-send  { background: #d1fae5; color: #059669; }
+    .nt-icon-alert { background: #fee2e2; color: #dc2626; }
+    .nt-icon.read  { background: #f1f5f9; color: #94a3b8; }
+
+    /* ── Text ── */
+    .nt-body { flex: 1; min-width: 0; }
+    .nt-msg {
+        font-size: 0.875rem; font-weight: 700; color: #0f172a;
+        line-height: 1.45; margin-bottom: 0.18rem;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .nt-item.read .nt-msg { font-weight: 500; color: #475569; }
+    .nt-time { font-size: 0.76rem; color: #94a3b8; }
+
+    /* ── Trailing dot ── */
+    .nt-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #2563eb; flex-shrink: 0; margin-left: auto;
+    }
+
+    /* ── Section labels ── */
+    .nt-section-label {
+        font-size: 0.75rem; font-weight: 700; color: #94a3b8;
+        letter-spacing: 0.06em; text-transform: uppercase;
+        margin: 1.5rem 0 0.65rem;
+    }
+    .nt-section-label:first-child { margin-top: 0; }
+
+    /* ── Empty state ── */
+    .nt-empty {
+        background: white; border: 1.5px solid #e2e8f0;
+        border-radius: 16px; padding: 4rem 2rem;
+        text-align: center;
+    }
+    .nt-empty-icon {
+        width: 64px; height: 64px; background: #f1f5f9;
+        border-radius: 50%; display: flex; align-items: center;
+        justify-content: center; margin: 0 auto 1.25rem;
+        font-size: 1.6rem; color: #cbd5e1;
+    }
+    .nt-empty-title { font-size: 1.1rem; font-weight: 800; color: #0f172a; margin-bottom: 0.4rem; }
+    .nt-empty-sub   { font-size: 0.85rem; color: #94a3b8; max-width: 300px; margin: 0 auto; }
+</style>
+
+<div class="nt-wrap">
+
+    <!-- Header -->
+    <div class="nt-header">
+        <div>
+            <div class="nt-title-row">
+                <h1 class="nt-title">Notifications</h1>
+                @if (unreadCount > 0)
+                {
+                    <span class="nt-badge">@unreadCount new</span>
+                }
+            </div>
+            <p class="nt-sub">@totalCount notification@(totalCount == 1 ? "" : "s") total</p>
+        </div>
+
+        @if (unreadCount > 0)
+        {
+            <form asp-action="MarkAllNotificationsRead" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn-mark-all">
+                    <i class="bi bi-check2-all me-1"></i> Mark all read
+                </button>
+            </form>
+        }
+    </div>
+
+    <!-- List -->
+    @if (allNotes.Any())
+    {
+        @if (unreadCount > 0)
+        {
+            <div class="nt-section-label">New</div>
+            <div class="nt-list">
+                @foreach (var note in allNotes.Where(n => !n.IsRead))
+                {
+                    var iconCls = IconClass(note.NotificationType);
+                    <a asp-action="Detail" asp-route-id="@note.GrievanceId" class="nt-item unread">
+                        <div class="nt-icon @iconCls.Split(' ')[0]">
+                            <i class="@string.Join(" ", iconCls.Split(' ').Skip(1))"></i>
+                        </div>
+                        <div class="nt-body">
+                            <div class="nt-msg">@note.Message</div>
+                            <div class="nt-time">@TimeAgo(note.SentAt)</div>
+                        </div>
+                        <div class="nt-dot"></div>
+                    </a>
+                }
+            </div>
+        }
+
+        var readNotes = allNotes.Where(n => n.IsRead).ToList();
+        @if (readNotes.Any())
+        {
+            <div class="nt-section-label">Earlier</div>
+            <div class="nt-list">
+                @foreach (var note in readNotes)
+                {
+                    var iconCls = IconClass(note.NotificationType);
+                    <a asp-action="Detail" asp-route-id="@note.GrievanceId" class="nt-item read">
+                        <div class="nt-icon @iconCls.Split(' ')[0] read">
+                            <i class="@string.Join(" ", iconCls.Split(' ').Skip(1))"></i>
+                        </div>
+                        <div class="nt-body">
+                            <div class="nt-msg">@note.Message</div>
+                            <div class="nt-time">@TimeAgo(note.SentAt)</div>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <div class="nt-empty">
+            <div class="nt-empty-icon"><i class="bi bi-bell-slash"></i></div>
+            <div class="nt-empty-title">You're all caught up!</div>
+            <div class="nt-empty-sub">When your grievances are updated or actioned, notifications will show here.</div>
+        </div>
+    }
+
+</div>

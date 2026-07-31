@@ -65,14 +65,14 @@ namespace GMS.Tests
                     Id = 101, TicketNumber = "GMS-01", Title = "Title 1",
                     Description = "Validating descriptions lengths for sample test logs.",
                     CategoryId = 1, DepartmentId = 1, SubmittedAt = DateTime.UtcNow.AddDays(-5),
-                    Priority = GrievancePriority.Normal
+                    Priority = GrievancePriority.Low
                 },
                 new Grievance
                 {
                     Id = 102, TicketNumber = "GMS-02", Title = "Title 2",
                     Description = "Validating descriptions lengths for sample test logs.",
                     CategoryId = 1, DepartmentId = 1, SubmittedAt = DateTime.UtcNow,
-                    Priority = GrievancePriority.Normal
+                    Priority = GrievancePriority.Low
                 }
             );
             await context.SaveChangesAsync();
@@ -88,8 +88,8 @@ namespace GMS.Tests
 
             Assert.IsFalse(ticket1!.IsRepetitive);
             Assert.IsFalse(ticket2!.IsRepetitive);
-            Assert.AreEqual(GrievancePriority.Normal, ticket1.Priority);
-            Assert.AreEqual(GrievancePriority.Normal, ticket2.Priority);
+            Assert.AreEqual(GrievancePriority.Low, ticket1.Priority);
+            Assert.AreEqual(GrievancePriority.Low, ticket2.Priority);
         }
 
         [TestMethod]
@@ -111,21 +111,21 @@ namespace GMS.Tests
                     Id = 201, TicketNumber = "GMS-21", Title = "Grievance 1",
                     Description = "Validating descriptions lengths for sample test logs.",
                     CategoryId = 2, DepartmentId = 1, SubmittedAt = DateTime.UtcNow.AddDays(-10),
-                    Priority = GrievancePriority.Normal, IsRepetitive = false
+                    Priority = GrievancePriority.Low, IsRepetitive = false
                 },
                 new Grievance
                 {
                     Id = 202, TicketNumber = "GMS-22", Title = "Grievance 2",
                     Description = "Validating descriptions lengths for sample test logs.",
                     CategoryId = 2, DepartmentId = 1, SubmittedAt = DateTime.UtcNow.AddDays(-2),
-                    Priority = GrievancePriority.Normal, IsRepetitive = false
+                    Priority = GrievancePriority.Low, IsRepetitive = false
                 },
                 new Grievance
                 {
                     Id = 203, TicketNumber = "GMS-23", Title = "Grievance 3",
                     Description = "Validating descriptions lengths for sample test logs.",
                     CategoryId = 2, DepartmentId = 1, SubmittedAt = DateTime.UtcNow,
-                    Priority = GrievancePriority.Normal, IsRepetitive = false
+                    Priority = GrievancePriority.Low, IsRepetitive = false
                 }
             );
             await context.SaveChangesAsync();

@@ -11,5 +11,6 @@ namespace GMS.Web.Models.Entities
         public string? Department { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public bool IsActive { get; set; } = true;
+        public string? ProfilePicturePath { get; set; }
     }
 }

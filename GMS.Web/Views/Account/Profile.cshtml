@@ -1,122 +1,452 @@
 @model GMS.Web.Models.ViewModels.EditProfileViewModel
 
 @{
-    ViewData["Title"] = "My Profile";
+    ViewData["Title"] = "Profile Settings";
+    ViewData["ActiveNav"] = "Profile";
+    Layout = "_StudentLayout";
+
+    // Build initials from full name
+    string initials = "U";
+    if (!string.IsNullOrWhiteSpace(Model?.FullName))
+    {
+        var parts = Model.FullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        initials = parts.Length > 1
+            ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
+            : parts[0][0].ToString().ToUpper();
+    }
+
+    bool hasPic = !string.IsNullOrWhiteSpace(Model?.ProfilePicturePath);
 }
 
-<div class="container py-4">
-    <div class="row">
-        <!-- Profile Navigation Sidebar -->
-        <div class="col-lg-4 mb-4">
-            <div class="card shadow-sm border-0 rounded-3 overflow-hidden bg-white text-center p-4">
-                <div class="card-body">
-                    <div class="position-relative d-inline-block mb-3">
-                        <i class="bi bi-person-circle text-primary" style="font-size: 6rem;"></i>
-                    </div>
-                    <h4 class="fw-bold mb-1 text-dark">@Model.FullName</h4>
-                    <p class="text-secondary small mb-3">@Model.Email</p>
-                    
-                    <span class="badge bg-secondary text-white py-1.5 px-3 rounded-pill fw-semibold mb-0">
-                        <i class="bi bi-person-badge me-1"></i>
-                        @(User.IsInRole("Administrator") ? "Administrator" : User.IsInRole("Staff") ? "Academic Staff" : "Student")
-                    </span>
-                </div>
-            </div>
+<style>
+    /* ────── Page wrap ────── */
+    .ps-wrap {
+        max-width: 680px;
+        margin: 0 auto;
+        padding: 0.25rem 0 3rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    /* ────── Page heading ────── */
+    .ps-heading {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.025em;
+        margin: 0 0 1.5rem;
+    }
+
+    /* ────── Alerts ────── */
+    .ps-alert {
+        padding: 0.85rem 1.2rem;
+        border-radius: 10px;
+        font-size: 0.84rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+    .ps-alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
+    .ps-alert-danger  { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
+
+    /* ────── Card ────── */
+    .ps-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1.5rem 1.75rem;
+        margin-bottom: 1rem;
+    }
+    .ps-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 1.25rem;
+    }
+
+    /* ────── Avatar (Profile Picture card) ────── */
+    .ps-avatar-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .ps-avatar {
+        width: 52px; height: 52px;
+        border-radius: 50%;
+        background: #2563eb;
+        color: white;
+        font-size: 1.1rem;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        overflow: hidden;
+        text-decoration: none;
+    }
+    .ps-avatar img {
+        width: 100%; height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+    .btn-upload-photo {
+        background: white;
+        color: #2563eb;
+        border: 1.5px solid #2563eb;
+        padding: 0.4rem 1.1rem;
+        border-radius: 8px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+        display: inline-block;
+        line-height: 1.4;
+    }
+    .btn-upload-photo:hover { background: #eff6ff; }
+    .ps-upload-hint {
+        font-size: 0.76rem;
+        color: #94a3b8;
+        margin-top: 0.3rem;
+    }
+
+    /* ────── Form fields ────── */
+    .ps-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+    @@media (max-width: 600px) { .ps-grid-2 { grid-template-columns: 1fr; } }
+
+    .ps-field { }
+    .ps-field.full { grid-column: 1 / -1; }
+
+    .ps-label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.35rem;
+    }
+    .ps-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.55rem 0.9rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-family: 'Inter', sans-serif;
+        color: #0f172a;
+        background: white;
+        outline: none;
+        transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .ps-input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+    }
+    .ps-input[readonly] {
+        background: #f8fafc;
+        color: #64748b;
+        cursor: not-allowed;
+    }
+
+    /* ────── Toggles ────── */
+    .ps-toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.9rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .ps-toggle-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .ps-toggle-row:first-child { padding-top: 0; }
+    .ps-toggle-title { font-size: 0.875rem; font-weight: 600; color: #0f172a; margin-bottom: 0.1rem; }
+    .ps-toggle-sub   { font-size: 0.77rem; color: #94a3b8; }
+
+    /* Switch */
+    .sw { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    .sw input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .sw-track {
+        position: absolute; inset: 0;
+        background: #cbd5e1;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: background 0.22s;
+    }
+    .sw-track::before {
+        content: '';
+        position: absolute;
+        width: 18px; height: 18px;
+        border-radius: 50%;
+        background: white;
+        top: 3px; left: 3px;
+        transition: transform 0.22s;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+    }
+    .sw input:checked + .sw-track { background: #2563eb; }
+    .sw input:checked + .sw-track::before { transform: translateX(20px); }
+
+    /* ────── Theme / Preferences ────── */
+    .theme-group {
+        display: inline-flex;
+        background: #f1f5f9;
+        border-radius: 8px;
+        padding: 3px;
+        gap: 2px;
+    }
+    .theme-btn {
+        padding: 0.38rem 1rem;
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        font-size: 0.81rem;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .theme-btn.active {
+        background: #2563eb;
+        color: white;
+    }
+
+    .ps-select {
+        width: 100%;
+        padding: 0.55rem 0.9rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-family: 'Inter', sans-serif;
+        color: #0f172a;
+        background: white;
+        outline: none;
+        cursor: pointer;
+    }
+
+    /* ────── Save Changes button ────── */
+    .btn-save-changes {
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 0.72rem 2rem;
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.18s;
+        margin-top: 0.5rem;
+        display: inline-block;
+    }
+    .btn-save-changes:hover { background: #1d4ed8; }
+</style>
+
+<div class="ps-wrap">
+
+    <h1 class="ps-heading">Profile Settings</h1>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="ps-alert ps-alert-success">
+            <i class="bi bi-check-circle-fill"></i> @TempData["SuccessMessage"]
         </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="ps-alert ps-alert-danger">
+            <i class="bi bi-exclamation-circle-fill"></i> @TempData["ErrorMessage"]
+        </div>
+    }
 
-        <!-- Profile Details Forms -->
-        <div class="col-lg-8">
-            <!-- Edit Profile Card -->
-            <div class="card shadow-sm border-0 rounded-3 mb-4 bg-white">
-                <div class="card-header bg-light py-3">
-                    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-person-gear me-2 text-primary"></i> Edit Profile Details</h5>
+    <!-- ① Profile Picture -->
+    <div class="ps-card">
+        <div class="ps-card-title">Profile Picture</div>
+        <form asp-action="UploadProfilePicture" method="post" enctype="multipart/form-data" id="photoForm">
+            @Html.AntiForgeryToken()
+            <div class="ps-avatar-row">
+                <!-- Avatar: shows photo if uploaded, else initials -->
+                <div class="ps-avatar" id="avatarPreview">
+                    @if (hasPic)
+                    {
+                        <img id="avatarImg" src="@Model!.ProfilePicturePath" alt="Profile photo" />
+                    }
+                    else
+                    {
+                        <span id="avatarInitials">@initials</span>
+                    }
                 </div>
-                <div class="card-body p-4">
-                    <form asp-action="EditProfile" method="post">
-                        @Html.AntiForgeryToken()
-                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3 small"></div>
 
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <label asp-for="FullName" class="form-label fw-semibold">Full Name</label>
-                                <input asp-for="FullName" class="form-control form-control-gms" />
-                                <span asp-validation-for="FullName" class="text-danger small"></span>
-                            </div>
-                            <div class="col-md-6">
-                                <label asp-for="Email" class="form-label fw-semibold">Email Address</label>
-                                <input asp-for="Email" class="form-control form-control-gms text-secondary" readonly />
-                                <span asp-validation-for="Email" class="text-danger small"></span>
-                            </div>
-                        </div>
-
-                        @if (User.IsInRole("Student"))
-                        {
-                            <div class="row g-3 mb-4">
-                                <div class="col-md-6">
-                                    <label asp-for="StudentId" class="form-label fw-semibold">Student ID</label>
-                                    <input asp-for="StudentId" class="form-control form-control-gms" />
-                                    <span asp-validation-for="StudentId" class="text-danger small"></span>
-                                </div>
-                                <div class="col-md-6">
-                                    <label asp-for="Programme" class="form-label fw-semibold">Academic Programme</label>
-                                    <input asp-for="Programme" class="form-control form-control-gms" />
-                                    <span asp-validation-for="Programme" class="text-danger small"></span>
-                                </div>
-                            </div>
-                        }
-                        else if (User.IsInRole("Staff"))
-                        {
-                            <div class="mb-4">
-                                <label asp-for="Department" class="form-label fw-semibold">Assigned Department</label>
-                                <select asp-for="Department" asp-items="ViewBag.Departments" class="form-select form-control-gms">
-                                    <option value="">-- Select Department --</option>
-                                </select>
-                                <span asp-validation-for="Department" class="text-danger small"></span>
-                            </div>
-                        }
-
-                        <button type="submit" class="btn btn-primary btn-gms-primary px-4 py-2 fw-semibold">
-                            <i class="bi bi-save me-1"></i> Save Profile
-                        </button>
-                    </form>
+                <div>
+                    <label for="profilePhotoInput" class="btn-upload-photo">
+                        Upload Photo
+                    </label>
+                    <input type="file" id="profilePhotoInput" name="profilePhoto"
+                           accept="image/png,image/jpeg"
+                           style="display:none;"
+                           onchange="previewAndSubmit(this)" />
+                    <div class="ps-upload-hint">JPG or PNG, max 2MB</div>
                 </div>
             </div>
+        </form>
+    </div>
 
-            <!-- Change Password Card -->
-            <div class="card shadow-sm border-0 rounded-3 bg-white">
-                <div class="card-header bg-light py-3">
-                    <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-shield-lock me-2 text-danger"></i> Update Password</h5>
+    <!-- ② Personal Information -->
+    <div class="ps-card">
+        <div class="ps-card-title">Personal Information</div>
+        <form asp-action="EditProfile" method="post" id="profileForm">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+            <div class="ps-grid-2">
+                <div class="ps-field">
+                    <label class="ps-label">Full Name</label>
+                    <input asp-for="FullName" class="ps-input" placeholder="Aisha Rahman" />
+                    <span asp-validation-for="FullName" class="text-danger small"></span>
                 </div>
-                <div class="card-body p-4">
-                    <form asp-action="ChangePassword" method="post">
-                        @Html.AntiForgeryToken()
-
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" for="OldPassword">Current Password</label>
-                            <input type="password" id="OldPassword" name="OldPassword" class="form-control form-control-gms" required />
-                        </div>
-
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold" for="NewPassword">New Password</label>
-                                <input type="password" id="NewPassword" name="NewPassword" class="form-control form-control-gms" required />
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold" for="ConfirmPassword">Confirm New Password</label>
-                                <input type="password" id="ConfirmPassword" name="ConfirmPassword" class="form-control form-control-gms" required />
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-danger px-4 py-2 fw-semibold">
-                            <i class="bi bi-check2-circle me-1"></i> Change Password
-                        </button>
-                    </form>
+                <div class="ps-field">
+                    <label class="ps-label">Student ID</label>
+                    <input asp-for="StudentId" class="ps-input" placeholder="STU-2024-0012" />
                 </div>
+                <div class="ps-field">
+                    <label class="ps-label">Email Address</label>
+                    <input asp-for="Email" class="ps-input" readonly placeholder="aisha@university.edu" />
+                </div>
+                <div class="ps-field">
+                    <label class="ps-label">Department</label>
+                    <input asp-for="Programme" class="ps-input" placeholder="Computer Science" />
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- ③ Change Password -->
+    <div class="ps-card">
+        <div class="ps-card-title">Change Password</div>
+        <form asp-action="ChangePassword" method="post" id="passwordForm">
+            @Html.AntiForgeryToken()
+            <div class="ps-field" style="margin-bottom:1rem;">
+                <label class="ps-label">Current Password</label>
+                <input type="password" name="OldPassword" class="ps-input" placeholder="••••••••" />
+            </div>
+            <div class="ps-field" style="margin-bottom:1rem;">
+                <label class="ps-label">New Password</label>
+                <input type="password" name="NewPassword" class="ps-input" placeholder="••••••••" />
+            </div>
+            <div class="ps-field">
+                <label class="ps-label">Confirm New Password</label>
+                <input type="password" name="ConfirmPassword" class="ps-input" placeholder="••••••••" />
+            </div>
+        </form>
+    </div>
+
+    <!-- ④ Notification Preferences -->
+    <div class="ps-card">
+        <div class="ps-card-title">Notification Preferences</div>
+        <div class="ps-toggle-row">
+            <div>
+                <div class="ps-toggle-title">Email Notifications</div>
+                <div class="ps-toggle-sub">Receive updates via email</div>
+            </div>
+            <label class="sw">
+                <input type="checkbox" checked />
+                <span class="sw-track"></span>
+            </label>
+        </div>
+        <div class="ps-toggle-row">
+            <div>
+                <div class="ps-toggle-title">Push Notifications</div>
+                <div class="ps-toggle-sub">In-app alerts for status changes</div>
+            </div>
+            <label class="sw">
+                <input type="checkbox" />
+                <span class="sw-track"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- ⑤ Preferences -->
+    <div class="ps-card">
+        <div class="ps-card-title">Preferences</div>
+        <div class="ps-grid-2">
+            <div class="ps-field">
+                <label class="ps-label">Theme</label>
+                <div class="theme-group" id="themeGroup">
+                    <button type="button" class="theme-btn" data-theme-val="light" onclick="changeTheme('light', this)">Light</button>
+                    <button type="button" class="theme-btn" data-theme-val="dark" onclick="changeTheme('dark', this)">Dark</button>
+                </div>
+            </div>
+            <div class="ps-field">
+                <label class="ps-label">Language</label>
+                <select class="ps-select">
+                    <option>English</option>
+                    <option>Nepali</option>
+                </select>
             </div>
         </div>
     </div>
+
+    <!-- Save Changes -->
+    <div>
+        <button type="button" class="btn-save-changes"
+                onclick="document.getElementById('profileForm').submit();">
+            Save Changes
+        </button>
+    </div>
+
 </div>
 
-@section Scripts {
-    @await Html.PartialAsync("_ValidationScriptsPartial")
-}
+<script>
+    // Preview the selected image instantly and auto-submit the upload form
+    function previewAndSubmit(input) {
+        if (!input.files || !input.files[0]) return;
+
+        var file = input.files[0];
+        // Client-side size guard (2 MB)
+        if (file.size > 2097152) {
+            alert('Photo must be under 2 MB.');
+            input.value = '';
+            return;
+        }
+
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            var preview = document.getElementById('avatarPreview');
+            // Replace inner content with an <img>
+            preview.innerHTML = '<img id="avatarImg" src="' + e.target.result + '" alt="Profile photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />';
+        };
+        reader.readAsDataURL(file);
+
+        // Submit the photo form automatically
+        document.getElementById('photoForm').submit();
+    }
+
+    // Theme button switcher
+    function changeTheme(theme, btn) {
+        if (window.applyGmsTheme) {
+            window.applyGmsTheme(theme);
+        }
+        var group = document.getElementById('themeGroup');
+        if (group) {
+            group.querySelectorAll('.theme-btn').forEach(function (b) {
+                b.classList.remove('active');
+            });
+            if (btn) btn.classList.add('active');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var current = localStorage.getItem('gms_theme') || 'light';
+        var activeBtn = document.querySelector('#themeGroup .theme-btn[data-theme-val="' + current + '"]');
+        if (activeBtn) {
+            document.querySelectorAll('#themeGroup .theme-btn').forEach(function (b) {
+                b.classList.remove('active');
+            });
+            activeBtn.classList.add('active');
+        } else {
+            // Default to Light if unknown
+            var lightBtn = document.querySelector('#themeGroup .theme-btn[data-theme-val="light"]');
+            if (lightBtn) lightBtn.classList.add('active');
+        }
+    });
+</script>

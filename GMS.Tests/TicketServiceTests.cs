@@ -20,7 +20,7 @@ namespace GMS.Tests
         }
 
         [TestMethod]
-        public async Task GenerateTicketNumberAsync_ShouldCreateFirstTicket_CorrectFormat()
+        public async Task GenerateTicketNumberAsync_ShouldCreateUniqueGuidBackedTicket()
         {
             // Arrange
             using var context = GetInMemoryContext();
@@ -33,35 +33,25 @@ namespace GMS.Tests
             // Assert
             Assert.IsNotNull(ticketNumber);
             Assert.IsTrue(ticketNumber.StartsWith($"GMS-{expectedYear}-"));
-            Assert.AreEqual($"GMS-{expectedYear}-00001", ticketNumber);
+            Assert.AreEqual($"GMS-{expectedYear}-".Length + 32, ticketNumber.Length);
+            Assert.IsTrue(Guid.TryParseExact(ticketNumber.Substring($"GMS-{expectedYear}-".Length), "N", out _));
         }
 
         [TestMethod]
-        public async Task GenerateTicketNumberAsync_ShouldIncrementSequence_WhenTicketsExist()
+        public async Task GenerateTicketNumberAsync_ShouldGenerateDistinctTickets_WhenCalledConcurrently()
         {
             // Arrange
             using var context = GetInMemoryContext();
-            var expectedYear = DateTime.UtcNow.Year;
-
-            // Seed existing tickets
-            context.Grievances.Add(new Grievance
-            {
-                TicketNumber = $"GMS-{expectedYear}-00045",
-                Title = "Test 1",
-                Description = "Test 1 description with more than fifty characters to pass validations.",
-                IncidentDate = DateTime.Today,
-                CategoryId = 1,
-                DepartmentId = 1
-            });
-            await context.SaveChangesAsync();
-
             var service = new TicketService(context);
 
             // Act
-            var ticketNumber = await service.GenerateTicketNumberAsync();
+            var tickets = await Task.WhenAll(
+                service.GenerateTicketNumberAsync(),
+                service.GenerateTicketNumberAsync(),
+                service.GenerateTicketNumberAsync());
 
             // Assert
-            Assert.AreEqual($"GMS-{expectedYear}-00046", ticketNumber);
+            Assert.AreEqual(tickets.Length, tickets.Distinct().Count());
         }
     }
 }

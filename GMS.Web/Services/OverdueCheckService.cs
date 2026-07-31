@@ -19,6 +19,7 @@ namespace GMS.Web.Services
         private readonly ILogger<OverdueCheckService> _logger;
         private readonly int _checkIntervalMinutes;
         private readonly int _overdueDays;
+        private readonly bool _slaEnabled;
 
         public OverdueCheckService(IServiceProvider serviceProvider, ILogger<OverdueCheckService> logger, IConfiguration configuration)
         {
@@ -26,6 +27,7 @@ namespace GMS.Web.Services
             _logger = logger;
             _checkIntervalMinutes = configuration.GetValue<int>("SLA:CheckIntervalMinutes", 1); // Default to check every 1 minute in dev
             _overdueDays = configuration.GetValue<int>("SLA:OverdueDays", 7);
+            _slaEnabled = configuration.GetValue<bool>("SLA:Enabled", true);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -50,6 +52,11 @@ namespace GMS.Web.Services
 
         private async Task CheckOverdueTicketsAsync()
         {
+            if (!_slaEnabled)
+            {
+                return;
+            }
+
             using (var scope = _serviceProvider.CreateScope())
             {
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

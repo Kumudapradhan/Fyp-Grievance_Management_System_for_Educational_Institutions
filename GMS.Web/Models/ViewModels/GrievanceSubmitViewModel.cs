@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using GMS.Web.Models.Entities;
+
 
 namespace GMS.Web.Models.ViewModels
 {
@@ -29,6 +31,10 @@ namespace GMS.Web.Models.ViewModels
 
         [Display(Name = "Submit Anonymously?")]
         public bool IsAnonymous { get; set; }
+
+        [Display(Name = "Priority")]
+        public GrievancePriority Priority { get; set; } = GrievancePriority.Low;
+
 
         [Display(Name = "Evidence Attachments (Optional, PDF/Images/Word, Max 5MB each)")]
         public List<IFormFile> EvidenceFiles { get; set; } = new List<IFormFile>();

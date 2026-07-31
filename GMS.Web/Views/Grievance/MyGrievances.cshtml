@@ -1,0 +1,244 @@
+@model IEnumerable<GMS.Web.Models.Entities.Grievance>
+
+@{
+    ViewData["Title"] = "My Grievances";
+    ViewData["ActiveNav"] = "MyGrievances";
+    Layout = "_StudentLayout";
+
+    var statusFilter = ViewBag.StatusFilter as string ?? "";
+    var searchFilter = ViewBag.SearchFilter as string ?? "";
+    var items = Model.ToList();
+}
+
+<style>
+    /* ── PAGE HEADER ── */
+    .mg-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.75rem; flex-wrap: wrap; gap: 1rem; }
+    .mg-title { font-size: 1.75rem; font-weight: 800; color: var(--text-heading); letter-spacing: -0.03em; }
+    .mg-sub { font-size: 0.9rem; color: var(--slate-500); margin-top: 0.2rem; }
+
+    .btn-new {
+        padding: 0.55rem 1.25rem; font-size: 0.875rem; font-weight: 700;
+        border-radius: 10px; background: var(--primary); color: white;
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        box-shadow: 0 4px 12px rgba(37,99,235,0.28); text-decoration: none;
+        border: none; transition: background 0.2s, transform 0.15s;
+    }
+    .btn-new:hover { background: #1d4ed8; color: white; transform: translateY(-1px); }
+
+    /* ── FILTER BAR ── */
+    .filter-bar {
+        display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+    }
+    .search-wrap { position: relative; flex: 1; min-width: 220px; }
+    .search-wrap i { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 1rem; }
+    .search-input {
+        width: 100%; padding: 0.6rem 0.9rem 0.6rem 2.4rem;
+        border: 1.5px solid var(--border-color); border-radius: 10px;
+        font-size: 0.875rem; font-family: var(--font); color: var(--text-heading);
+        background: white; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+    /* Status Filter Chips */
+    .filter-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .chip {
+        padding: 0.4rem 1rem; font-size: 0.8rem; font-weight: 600;
+        border-radius: 999px; border: 1.5px solid var(--border-color);
+        background: white; color: #64748b; cursor: pointer; text-decoration: none;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .chip:hover { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+    .chip.active-all { background: var(--primary); border-color: var(--primary); color: white; }
+    .chip.active-open { background: #eff6ff; border-color: #2563eb; color: #1d4ed8; }
+    .chip.active-progress { background: #fffbeb; border-color: #b45309; color: #b45309; }
+    .chip.active-resolved { background: #f0fdf4; border-color: #15803d; color: #15803d; }
+
+    /* ── TABLE ── */
+    .mg-card { border-radius: 16px; overflow: hidden; }
+    .table-gms2 { width: 100%; border-collapse: collapse; }
+    .table-gms2 thead tr { background: #f8fafc; }
+    .table-gms2 th {
+        padding: 0.9rem 1.25rem; font-size: 0.72rem; font-weight: 700;
+        color: #64748b; text-transform: uppercase; letter-spacing: 0.06em;
+        border-bottom: 1.5px solid var(--border-color); white-space: nowrap;
+    }
+    .table-gms2 td {
+        padding: 1rem 1.25rem; font-size: 0.875rem;
+        color: var(--text-main); border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+    .table-gms2 tbody tr:last-child td { border-bottom: none; }
+    .table-gms2 tbody tr { transition: background 0.1s; }
+    .table-gms2 tbody tr:hover td { background: #fafbfc; }
+
+    .ticket-num { font-weight: 800; color: var(--primary); font-size: 0.825rem; letter-spacing: 0.02em; }
+    .ticket-ttl { font-weight: 600; color: var(--text-heading); }
+    .ticket-dept { color: #64748b; font-size: 0.83rem; }
+
+    /* View button */
+    .btn-view {
+        padding: 0.35rem 0.85rem; font-size: 0.8rem; font-weight: 600;
+        border-radius: 8px; border: 1.5px solid var(--border-color);
+        background: white; color: #334155; text-decoration: none;
+        display: inline-flex; align-items: center; gap: 0.35rem;
+        transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .btn-view:hover { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+
+    /* Empty state */
+    .empty-state {
+        text-align: center; padding: 4rem 2rem;
+        color: #94a3b8;
+    }
+    .empty-state i { font-size: 3rem; display: block; margin-bottom: 1rem; color: #cbd5e1; }
+    .empty-state p { font-size: 0.9rem; font-weight: 500; }
+
+    /* Summary pills */
+    .summary-row { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .summary-pill {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        padding: 0.35rem 0.85rem; border-radius: 999px;
+        font-size: 0.8rem; font-weight: 600; border: 1px solid;
+    }
+    .sp-total { background: #f8fafc; border-color: #e2e8f0; color: #475569; }
+    .sp-open { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+    .sp-prog { background: #fffbeb; border-color: #fde68a; color: #b45309; }
+    .sp-resolved { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+
+    @@media (max-width: 768px) {
+        .mg-header { flex-direction: column; align-items: flex-start; }
+        .table-gms2 th:nth-child(3), .table-gms2 td:nth-child(3),
+        .table-gms2 th:nth-child(5), .table-gms2 td:nth-child(5) { display: none; }
+    }
+</style>
+
+<!-- Page Header -->
+<div class="mg-header">
+    <div>
+        <h2 class="mg-title">My Grievances</h2>
+        <p class="mg-sub">Track and manage all your submitted complaints</p>
+    </div>
+    <a asp-action="Submit" class="btn-new">
+        <i class="bi bi-plus-lg"></i> New Complaint
+    </a>
+</div>
+
+@{
+    var totalAll = items.Count;
+    var openCount = items.Count(g => g.Status == GMS.Web.Models.Entities.GrievanceStatus.Open);
+    var progCount = items.Count(g => g.Status == GMS.Web.Models.Entities.GrievanceStatus.InProgress);
+    var resolvedCount = items.Count(g => g.Status == GMS.Web.Models.Entities.GrievanceStatus.Resolved);
+}
+
+<!-- Summary Pills -->
+<div class="summary-row">
+    <span class="summary-pill sp-total"><i class="bi bi-files"></i> @totalAll Total</span>
+    <span class="summary-pill sp-open"><i class="bi bi-circle"></i> @openCount Open</span>
+    <span class="summary-pill sp-prog"><i class="bi bi-arrow-repeat"></i> @progCount In Progress</span>
+    <span class="summary-pill sp-resolved"><i class="bi bi-check-circle"></i> @resolvedCount Resolved</span>
+</div>
+
+<!-- Filter Bar -->
+<form method="get" class="filter-bar" id="filterForm">
+    <div class="search-wrap">
+        <i class="bi bi-search"></i>
+        <input type="text" name="search" value="@searchFilter" class="search-input" placeholder="Search by title or ticket no..." id="searchInput" autocomplete="off" />
+    </div>
+    <div class="filter-chips">
+        <a href="@Url.Action("MyGrievances", new { search = searchFilter })" class="chip @(string.IsNullOrEmpty(statusFilter) ? "active-all" : "")">All</a>
+        <a href="@Url.Action("MyGrievances", new { status = "Open", search = searchFilter })" class="chip @(statusFilter == "Open" ? "active-open" : "")">Open</a>
+        <a href="@Url.Action("MyGrievances", new { status = "InProgress", search = searchFilter })" class="chip @(statusFilter == "InProgress" ? "active-progress" : "")">In Progress</a>
+        <a href="@Url.Action("MyGrievances", new { status = "Resolved", search = searchFilter })" class="chip @(statusFilter == "Resolved" ? "active-resolved" : "")">Resolved</a>
+    </div>
+</form>
+
+<!-- Grievances Table Card -->
+<div class="page-card mg-card">
+    @if (items.Any())
+    {
+        <div class="table-responsive">
+            <table class="table-gms2">
+                <thead>
+                    <tr>
+                        <th>Ticket No.</th>
+                        <th>Title</th>
+                        <th>Department</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Priority</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in items.OrderByDescending(g => g.SubmittedAt))
+                    {
+                        var statusClass = "badge-status-open";
+                        var statusLabel = item.Status.ToString();
+                        if (item.IsOverdue && item.Status != GMS.Web.Models.Entities.GrievanceStatus.Resolved)
+                        {
+                            statusClass = "badge-status-overdue";
+                            statusLabel = "Overdue";
+                        }
+                        else if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.InProgress)
+                        {
+                            statusClass = "badge-status-progress";
+                            statusLabel = "In Progress";
+                        }
+                        else if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.Resolved)
+                        {
+                            statusClass = "badge-status-resolved";
+                        }
+
+                        var priorityClass = "badge-priority-low";
+                        if (item.Priority == GMS.Web.Models.Entities.GrievancePriority.High)
+                            priorityClass = "badge-priority-high";
+
+                        <tr>
+                            <td><span class="ticket-num">@item.TicketNumber</span></td>
+                            <td><span class="ticket-ttl">@item.Title</span></td>
+                            <td><span class="ticket-dept">@(item.Department?.Name ?? "—")</span></td>
+                            <td><span class="badge-status @statusClass">@statusLabel</span></td>
+                            <td style="white-space:nowrap; color:#64748b;">@item.SubmittedAt.ToString("dd MMM yyyy")</td>
+                            <td><span class="badge-priority @priorityClass">@item.Priority.ToString()</span></td>
+                            <td>
+                                <a asp-action="Detail" asp-route-id="@item.Id" class="btn-view">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <p>
+                @if (!string.IsNullOrEmpty(searchFilter) || !string.IsNullOrEmpty(statusFilter))
+                {
+                    <text>No grievances match your filters. <a asp-action="MyGrievances" style="color:var(--primary); font-weight:700;">Clear filters</a></text>
+                }
+                else
+                {
+                    <text>You haven't submitted any grievances yet.<br/>
+                    <a asp-action="Submit" class="btn-new d-inline-flex mt-3"><i class="bi bi-plus-lg"></i> Submit your first complaint</a></text>
+                }
+            </p>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // Live search — submit form on Enter or after 400ms idle
+        var searchTimer;
+        document.getElementById('searchInput').addEventListener('input', function () {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(function () {
+                document.getElementById('filterForm').submit();
+            }, 500);
+        });
+    </script>
+}

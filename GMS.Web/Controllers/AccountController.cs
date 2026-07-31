@@ -21,6 +21,7 @@ namespace GMS.Web.Controllers
         private readonly ApplicationDbContext _context;
         private readonly Microsoft.AspNetCore.Identity.UI.Services.IEmailSender _emailSender;
         private readonly ILogger<AccountController> _logger;
+        private readonly IWebHostEnvironment _env;
 
         public AccountController(
             UserManager<ApplicationUser> userManager,
@@ -28,7 +29,8 @@ namespace GMS.Web.Controllers
             RoleManager<IdentityRole> roleManager,
             ApplicationDbContext context,
             Microsoft.AspNetCore.Identity.UI.Services.IEmailSender emailSender,
-            ILogger<AccountController> logger)
+            ILogger<AccountController> logger,
+            IWebHostEnvironment env)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -36,6 +38,7 @@ namespace GMS.Web.Controllers
             _context = context;
             _emailSender = emailSender;
             _logger = logger;
+            _env = env;
         }
 
         [HttpGet]
@@ -58,8 +61,12 @@ namespace GMS.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
-            // Lockdown staff registration to Administrator only
-            if (model.Role == "Staff" && !User.IsInRole("Administrator"))
+            // Enforce allowed roles on the server; hidden form fields can be changed by a client.
+            var allowedRoles = User.IsInRole("Administrator")
+                ? new[] { "Student", "Staff" }
+                : new[] { "Student" };
+
+            if (!allowedRoles.Contains(model.Role))
             {
                 return Forbid();
             }
@@ -316,7 +323,8 @@ namespace GMS.Web.Controllers
                 Email = user.Email ?? string.Empty,
                 StudentId = user.StudentId,
                 Programme = user.Programme,
-                Department = user.Department
+                Department = user.Department,
+                ProfilePicturePath = user.ProfilePicturePath
             };
 
             var departments = await _context.Departments.Select(d => d.Name).ToListAsync();
@@ -372,6 +380,60 @@ namespace GMS.Web.Controllers
             var depts = await _context.Departments.Select(d => d.Name).ToListAsync();
             ViewBag.Departments = new SelectList(depts);
             return View("Profile", model);
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        [RequestSizeLimit(3_000_000)]
+        public async Task<IActionResult> UploadProfilePicture(IFormFile profilePhoto)
+        {
+            if (profilePhoto == null || profilePhoto.Length == 0)
+            {
+                TempData["ErrorMessage"] = "Please select a photo to upload.";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            var allowed = new[] { "image/jpeg", "image/jpg", "image/png" };
+            if (!allowed.Contains(profilePhoto.ContentType.ToLower()))
+            {
+                TempData["ErrorMessage"] = "Only JPG or PNG files are accepted.";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            if (profilePhoto.Length > 2_097_152) // 2 MB
+            {
+                TempData["ErrorMessage"] = "Photo must be under 2 MB.";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Challenge();
+
+            // Save to wwwroot/uploads/profiles/
+            var uploadsDir = Path.Combine(_env.WebRootPath, "uploads", "profiles");
+            Directory.CreateDirectory(uploadsDir);
+
+            // Delete old file if exists
+            if (!string.IsNullOrWhiteSpace(user.ProfilePicturePath))
+            {
+                var oldFile = Path.Combine(_env.WebRootPath, user.ProfilePicturePath.TrimStart('/'));
+                if (System.IO.File.Exists(oldFile))
+                    System.IO.File.Delete(oldFile);
+            }
+
+            var ext      = Path.GetExtension(profilePhoto.FileName);
+            var fileName = $"{user.Id}{ext}";
+            var filePath = Path.Combine(uploadsDir, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+                await profilePhoto.CopyToAsync(stream);
+
+            user.ProfilePicturePath = $"/uploads/profiles/{fileName}";
+            await _userManager.UpdateAsync(user);
+
+            TempData["SuccessMessage"] = "Profile photo updated successfully.";
+            return RedirectToAction(nameof(Profile));
         }
 
         [HttpPost]

@@ -4,6 +4,7 @@ using GMS.Web.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using System;
@@ -23,6 +24,14 @@ namespace GMS.Tests
                 .Options;
             return new ApplicationDbContext(options);
         }
+
+        private static IConfiguration GetConfiguration() => new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SLA:Enabled"] = "true",
+                ["SLA:OverdueDays"] = "7"
+            })
+            .Build();
 
         [TestMethod]
         public async Task SubmitGrievanceAsync_ShouldSaveGrievanceAndRouteAndNotify()
@@ -47,7 +56,8 @@ namespace GMS.Tests
                 Description = "Wi-Fi issue description that is long enough to satisfy character length constraints.",
                 CategoryId = 5,
                 IsAnonymous = false,
-                StudentId = "student-1"
+                StudentId = "student-1",
+                Priority = GrievancePriority.Medium
             };
 
             var mockTicket = new Mock<ITicketService>();
@@ -58,7 +68,7 @@ namespace GMS.Tests
             var mockRepetitive = new Mock<IRepetitiveDetectionService>();
             var mockLogger = new Mock<ILogger<GrievanceService>>();
 
-            var service = new GrievanceService(context, mockTicket.Object, mockUpload.Object, mockNotif.Object, mockRepetitive.Object, mockLogger.Object);
+            var service = new GrievanceService(context, mockTicket.Object, mockUpload.Object, mockNotif.Object, mockRepetitive.Object, mockLogger.Object, GetConfiguration());
 
             // Act
             var result = await service.SubmitGrievanceAsync(grievance, new List<IFormFile>(), "student@test.com");
@@ -68,6 +78,9 @@ namespace GMS.Tests
             Assert.AreEqual("GMS-2026-99999", result.TicketNumber);
             Assert.AreEqual(10, result.DepartmentId); // Auto-routed to IT Support (DefaultDepartmentId = 10)
             Assert.AreEqual(GrievanceStatus.Open, result.Status);
+            Assert.AreEqual(GrievancePriority.Medium, result.Priority);
+            Assert.IsNotNull(result.DueDate);
+            Assert.AreEqual(7, (result.DueDate!.Value.Date - result.SubmittedAt.Date).TotalDays);
 
             // Verify repetitive check triggered
             mockRepetitive.Verify(r => r.DetectAsync(1), Times.Once);
@@ -115,7 +128,7 @@ namespace GMS.Tests
             var mockRepetitive = new Mock<IRepetitiveDetectionService>();
             var mockLogger = new Mock<ILogger<GrievanceService>>();
 
-            var service = new GrievanceService(context, mockTicket.Object, mockUpload.Object, mockNotif.Object, mockRepetitive.Object, mockLogger.Object);
+            var service = new GrievanceService(context, mockTicket.Object, mockUpload.Object, mockNotif.Object, mockRepetitive.Object, mockLogger.Object, GetConfiguration());
 
             // Act
             await service.UpdateStatusAsync(2, GrievanceStatus.Resolved, "admin-1", "Funds credited back to student card.");
@@ -125,6 +138,7 @@ namespace GMS.Tests
             Assert.IsNotNull(updated);
             Assert.AreEqual(GrievanceStatus.Resolved, updated.Status);
             Assert.AreEqual("Funds credited back to student card.", updated.ResolutionNotes);
+            Assert.IsNotNull(updated.ClosedAt);
 
             // Check if status history logged
             var history = await context.GrievanceStatusHistories.FirstOrDefaultAsync(h => h.GrievanceId == 2);
