@@ -1,452 +1,423 @@
 @model GMS.Web.Models.ViewModels.AdminDashboardViewModel
 
 @{
-    ViewData["Title"] = "Admin Console";
+    ViewData["Title"] = "Admin Dashboard";
     Layout = "_AdminLayout";
 }
 
-<!-- Premium KPI Statistics Row -->
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-3 col-lg border-end">
-        <div class="metric-card h-100 border-0 shadow-none py-2 text-center">
-            <span class="metric-title text-uppercase font-monospace text-secondary fs-7">Total Users</span>
-            <span class="metric-value fs-3 fw-bold text-dark">@Model.TotalUsersCount</span>
+<style>
+    /* Dashboard specific styles */
+    .dash-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 24px;
+    }
+    .dash-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 4px;
+    }
+    .dash-subtitle {
+        color: #64748b;
+        font-size: 0.95rem;
+    }
+    .btn-export {
+        background-color: white;
+        border: 1px solid #cbd5e1;
+        color: #475569;
+        font-weight: 500;
+        padding: 8px 16px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+    .btn-export:hover {
+        background-color: #f1f5f9;
+        color: #1e293b;
+    }
+    
+    /* Metric Cards */
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    .metric-card {
+        background-color: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .metric-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+    }
+    .metric-label {
+        font-size: 0.85rem;
+        color: #64748b;
+        font-weight: 500;
+        line-height: 1.3;
+    }
+    .metric-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+    }
+    .metric-icon.blue { background-color: #eff6ff; color: #2563eb; }
+    .metric-icon.orange { background-color: #fff7ed; color: #f97316; }
+    .metric-icon.green { background-color: #f0fdf4; color: #10b981; }
+    .metric-icon.red { background-color: #fef2f2; color: #ef4444; }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 4px;
+        line-height: 1;
+    }
+    .metric-subtext {
+        font-size: 0.8rem;
+        color: #94a3b8;
+    }
+    .metric-trend {
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 8px;
+    }
+    .metric-trend.positive { color: #10b981; }
+    
+    /* Charts */
+    .chart-grid {
+        display: grid;
+        grid-template-columns: 3fr 2fr;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    .dash-card {
+        background-color: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .dash-card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+    }
+    
+    /* Table */
+    .table-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+    .table-link {
+        color: #2563eb;
+        font-weight: 500;
+        font-size: 0.9rem;
+        text-decoration: none;
+    }
+    .table-link:hover { text-decoration: underline; }
+    
+    .dash-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .dash-table th {
+        text-align: left;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #94a3b8;
+        font-weight: 600;
+        padding: 12px 16px;
+        border-bottom: 1px dashed #e2e8f0;
+    }
+    .dash-table td {
+        padding: 16px;
+        border-bottom: 1px dashed #e2e8f0;
+        font-size: 0.9rem;
+        color: #475569;
+        vertical-align: middle;
+    }
+    .dash-table tr:last-child td {
+        border-bottom: none;
+    }
+    .td-ticket {
+        color: #2563eb;
+        font-weight: 600;
+    }
+    .td-student {
+        color: #1e293b;
+        font-weight: 500;
+    }
+    
+    /* Pills */
+    .pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .pill-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        margin-right: 6px;
+    }
+    
+    /* Priority Pills */
+    .pill-medium { background-color: #fef3c7; color: #b45309; }
+    .pill-high { background-color: #fee2e2; color: #b91c1c; }
+    
+    /* Status Pills */
+    .pill-progress { background-color: #ffedd5; color: #c2410c; }
+    .pill-progress .pill-dot { background-color: #f97316; }
+    
+    .pill-open { background-color: #eff6ff; color: #1d4ed8; }
+    .pill-open .pill-dot { background-color: #3b82f6; }
+    
+    .pill-resolved { background-color: #dcfce3; color: #15803d; }
+    .pill-resolved .pill-dot { background-color: #22c55e; }
+    
+    .pill-overdue { background-color: #fee2e2; color: #b91c1c; }
+    .pill-overdue .pill-dot { background-color: #ef4444; }
+</style>
+
+<div class="dash-header">
+    <div>
+        <h2 class="dash-title">Admin Dashboard</h2>
+        <div class="dash-subtitle">University Grievance Overview - @DateTime.Now.ToString("MMMM yyyy")</div>
+    </div>
+    <button class="btn-export">
+        <i class="bi bi-download"></i> Export Report
+    </button>
+</div>
+
+<!-- Metrics Grid -->
+<div class="metric-grid">
+    <div class="metric-card">
+        <div class="metric-card-header">
+            <div class="metric-label">Total<br/>Complaints</div>
+            <div class="metric-icon blue"><i class="bi bi-file-text"></i></div>
+        </div>
+        <div class="metric-value">@Model.TotalCount</div>
+        <div class="metric-subtext">This year</div>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-card-header">
+            <div class="metric-label">Open</div>
+            <div class="metric-icon orange"><i class="bi bi-exclamation-circle"></i></div>
+        </div>
+        <div class="metric-value">@Model.OpenCount</div>
+        <div class="metric-subtext">Unassigned</div>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-card-header">
+            <div class="metric-label">Resolved</div>
+            <div class="metric-icon green"><i class="bi bi-check-circle"></i></div>
+        </div>
+        <div class="metric-value">@Model.ResolvedCount</div>
+        <div class="metric-subtext">Closed cases</div>
+        <div class="metric-trend positive"><i class="bi bi-graph-up-arrow"></i> +12 this week</div>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-card-header">
+            <div class="metric-label">Overdue</div>
+            <div class="metric-icon red"><i class="bi bi-clock"></i></div>
+        </div>
+        <div class="metric-value">@Model.OverdueCount</div>
+        <div class="metric-subtext">Past deadline</div>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-card-header">
+            <div class="metric-label">High<br/>Priority</div>
+            <div class="metric-icon red"><i class="bi bi-exclamation-triangle"></i></div>
+        </div>
+        <div class="metric-value">@Model.HighPriorityCount</div>
+        <div class="metric-subtext">Urgent cases</div>
+    </div>
+</div>
+
+<!-- Charts Grid -->
+<div class="chart-grid">
+    <div class="dash-card">
+        <div class="dash-card-title">Complaints by Month</div>
+        <div style="position: relative; height: 260px;">
+            <canvas id="trendChart"></canvas>
         </div>
     </div>
-    <div class="col-6 col-md-3 col-lg border-end">
-        <div class="metric-card h-100 border-0 shadow-none py-2 text-center">
-            <span class="metric-title text-uppercase font-monospace text-secondary fs-7">Departments</span>
-            <span class="metric-value fs-3 fw-bold text-dark">@Model.TotalDepartmentsCount</span>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 col-lg border-end">
-        <div class="metric-card h-100 border-0 shadow-none py-2 text-center">
-            <span class="metric-title text-uppercase font-monospace text-secondary fs-7">Complaints</span>
-            <span class="metric-value fs-3 fw-bold text-primary">@Model.TotalCount</span>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 col-lg border-end">
-        <div class="metric-card h-100 border-0 shadow-none py-2 text-center">
-            <span class="metric-title text-uppercase font-monospace text-secondary fs-7">Open</span>
-            <span class="metric-value fs-3 fw-bold text-warning">@Model.OpenCount</span>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 col-lg border-end">
-        <div class="metric-card h-100 border-0 shadow-none py-2 text-center">
-            <span class="metric-title text-uppercase font-monospace text-secondary fs-7">Resolved</span>
-            <span class="metric-value fs-3 fw-bold text-success">@Model.ResolvedCount</span>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 col-lg border-end">
-        <div class="metric-card h-100 border-0 shadow-none py-2 text-center">
-            <span class="metric-title text-uppercase font-monospace text-secondary fs-7">Overdue</span>
-            <span class="metric-value fs-3 fw-bold text-danger">@Model.OverdueCount</span>
-        </div>
-    </div>
-    <div class="col-6 col-md-3 col-lg text-center">
-        <div class="metric-card h-100 border-0 shadow-none py-2">
-            <span class="metric-title text-uppercase font-monospace text-secondary fs-7">High Priority</span>
-            <span class="metric-value fs-3 fw-bold" style="color: #8b5cf6;">@Model.HighPriorityCount</span>
+    <div class="dash-card">
+        <div class="dash-card-title">By Category</div>
+        <div style="position: relative; height: 260px;">
+            <canvas id="catChart"></canvas>
         </div>
     </div>
 </div>
 
-<!-- Chart.js Visualization Section -->
-<div class="row g-3 mb-4">
-    <!-- Row 1: Category & Department breakdown -->
-    <div class="col-md-6">
-        <div class="card shadow-sm border-0 rounded-3 bg-white h-100">
-            <div class="card-header bg-light py-3">
-                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-pie-chart-fill me-2 text-primary"></i> Complaints by Department</h6>
-            </div>
-            <div class="card-body d-flex justify-content-center align-items-center" style="position: relative; height:260px;">
-                <canvas id="deptChart"></canvas>
-            </div>
-        </div>
+<!-- Table -->
+<div class="dash-card">
+    <div class="table-header">
+        <div class="dash-card-title" style="margin-bottom:0;">Recent Complaints</div>
+        <a href="#" class="table-link">View all &rarr;</a>
     </div>
-    <div class="col-md-6">
-        <div class="card shadow-sm border-0 rounded-3 bg-white h-100">
-            <div class="card-header bg-light py-3">
-                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-bar-chart-steps me-2 text-success"></i> Complaints by Category</h6>
-            </div>
-            <div class="card-body d-flex justify-content-center align-items-center" style="position: relative; height:260px;">
-                <canvas id="catChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Row 2: Monthly, Time averages, Open vs Closed -->
-    <div class="col-md-4">
-        <div class="card shadow-sm border-0 rounded-3 bg-white h-100">
-            <div class="card-header bg-light py-3">
-                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-graph-up me-2 text-info"></i> Monthly Trend</h6>
-            </div>
-            <div class="card-body d-flex justify-content-center align-items-center" style="position: relative; height:200px;">
-                <canvas id="trendChart"></canvas>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card shadow-sm border-0 rounded-3 bg-white h-100">
-            <div class="card-header bg-light py-3">
-                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-hourglass-split me-2 text-warning"></i> Avg Resolution Time (Days)</h6>
-            </div>
-            <div class="card-body d-flex justify-content-center align-items-center" style="position: relative; height:200px;">
-                <canvas id="resTimeChart"></canvas>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card shadow-sm border-0 rounded-3 bg-white h-100">
-            <div class="card-header bg-light py-3">
-                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-pie-chart me-2 text-danger"></i> Open vs Closed</h6>
-            </div>
-            <div class="card-body d-flex justify-content-center align-items-center" style="position: relative; height:200px;">
-                <canvas id="openClosedChart"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Bottom Layout Splitted Panels -->
-<div class="row g-3">
-    <!-- Left Column: Grievance Queue filters & list table -->
-    <div class="col-lg-8">
-        <!-- Filters section -->
-        <div class="card shadow-sm border-0 rounded-3 bg-white mb-4">
-            <div class="card-header bg-light py-3">
-                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-funnel-fill me-2 text-primary"></i> Filter Grievance Queue</h6>
-            </div>
-            <div class="card-body p-3">
-                <form asp-action="Index" method="get">
-                    <div class="row g-3 mb-3">
-                        <div class="col-sm-6 col-md-3">
-                            <label class="form-label small fw-semibold">Status</label>
-                            <select name="status" class="form-select form-select-sm form-control-gms">
-                                <option value="">-- All Statuses --</option>
-                                @foreach (var val in Enum.GetValues(typeof(GMS.Web.Models.Entities.GrievanceStatus)))
-                                {
-                                    var selected = Model.SelectedStatus?.ToString() == val.ToString() ? "selected" : "";
-                                    <!option value="@val" @selected>@val.ToString()</!option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-sm-6 col-md-3">
-                            <label class="form-label small fw-semibold">Department</label>
-                            <select name="departmentId" class="form-select form-select-sm form-control-gms">
-                                <option value="">-- All Departments --</option>
-                                @foreach (var dept in Model.Departments)
-                                {
-                                    var selected = Model.SelectedDepartmentId == dept.Id ? "selected" : "";
-                                    <!option value="@dept.Id" @selected>@dept.Name</!option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-sm-6 col-md-3">
-                            <label class="form-label small fw-semibold">Category</label>
-                            <select name="categoryId" class="form-select form-select-sm form-control-gms">
-                                <option value="">-- All Categories --</option>
-                                @foreach (var cat in Model.Categories)
-                                {
-                                    var selected = Model.SelectedCategoryId == cat.Id ? "selected" : "";
-                                    <!option value="@cat.Id" @selected>@cat.Name</!option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-sm-6 col-md-3">
-                            <label class="form-label small fw-semibold">Priority</label>
-                            <select name="priority" class="form-select form-select-sm form-control-gms">
-                                <option value="">-- All Priorities --</option>
-                                @foreach (var val in Enum.GetValues(typeof(GMS.Web.Models.Entities.GrievancePriority)))
-                                {
-                                    var selected = Model.SelectedPriority?.ToString() == val.ToString() ? "selected" : "";
-                                    <!option value="@val" @selected>@val.ToString()</!option>
-                                }
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-5">
-                            <label class="form-label small fw-semibold">Keyword Search</label>
-                            <input type="text" name="search" class="form-control form-control-sm form-control-gms" placeholder="Search Ticket, Title, Student..." value="@Model.SearchQuery" />
-                        </div>
-                        <div class="col-sm-6 col-md-3">
-                            <label class="form-label small fw-semibold">Date Submitted (From)</label>
-                            <input type="date" name="startDate" class="form-control form-control-sm form-control-gms" value="@Model.StartDate?.ToString("yyyy-MM-dd")" />
-                        </div>
-                        <div class="col-sm-6 col-md-2">
-                            <label class="form-label small fw-semibold">Date Submitted (To)</label>
-                            <input type="date" name="endDate" class="form-control form-control-sm form-control-gms" value="@Model.EndDate?.ToString("yyyy-MM-dd")" />
-                        </div>
-                        <div class="col-md-2 d-flex gap-2">
-                            <button type="submit" class="btn btn-primary btn-gms-primary btn-sm flex-grow-1">
-                                <i class="bi bi-filter"></i> Apply
-                            </button>
-                            <a asp-action="Index" class="btn btn-gms-secondary btn-sm flex-grow-1 text-center">
-                                Reset
-                            </a>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Recent Complaints table -->
-        <div class="card shadow-sm border-0 rounded-3 bg-white">
-            <div class="card-header bg-light py-3">
-                <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-ticket-perforated-fill me-2 text-primary"></i> Grievance Queue</h5>
-            </div>
-            <div class="card-body p-0">
-                @if (Model.Grievances.Any())
-                {
-                    <div class="table-responsive">
-                        <table class="table table-hover table-gms align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Ticket</th>
-                                    <th>Title</th>
-                                    <th>Student</th>
-                                    <th>Department</th>
-                                    <th>Submitted</th>
-                                    <th>Status</th>
-                                    <th>Flags</th>
-                                    <th class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var item in Model.Grievances)
-                                {
-                                    var overdueClass = item.IsOverdue && item.Status != GMS.Web.Models.Entities.GrievanceStatus.Resolved ? "row-overdue" : "";
-                                    <tr class="@overdueClass">
-                                        <td class="fw-bold text-primary">@item.TicketNumber</td>
-                                        <td>
-                                            <span class="d-block fw-semibold text-dark text-truncate" style="max-width: 180px;">@item.Title</span>
-                                            <small class="text-muted">@item.Category?.Name</small>
-                                        </td>
-                                        <td>
-                                            @if (item.IsAnonymous)
-                                            {
-                                                <span class="text-danger fw-medium"><i class="bi bi-eye-slash-fill me-1"></i> Anonymous</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="fw-medium text-dark">@item.Student?.FullName</span>
-                                                <small class="text-secondary d-block" style="font-size:0.75rem;">ID: @item.Student?.StudentId</small>
-                                            }
-                                        </td>
-                                        <td>@item.Department?.Name</td>
-                                        <td class="small text-secondary">@item.SubmittedAt.ToString("d")</td>
-                                        <td>
-                                            @if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.Open)
-                                            {
-                                                <span class="badge-status badge-status-open">Open</span>
-                                            }
-                                            else if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.InProgress)
-                                            {
-                                                <span class="badge-status badge-status-progress">InProgress</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="badge-status badge-status-resolved">Resolved</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            <div class="d-flex flex-column gap-1">
-                                                @if (item.Priority == GMS.Web.Models.Entities.GrievancePriority.High)
-                                                {
-                                                    <span class="badge-status badge-priority-high text-center">High</span>
-                                                }
-                                                @if (item.IsOverdue && item.Status != GMS.Web.Models.Entities.GrievanceStatus.Resolved)
-                                                {
-                                                    <span class="badge bg-danger text-white text-center" style="font-size: 0.65rem; padding: 0.2rem 0.4rem;">SLA Breach</span>
-                                                }
-                                                @if (item.IsRepetitive)
-                                                {
-                                                    <span class="badge bg-purple text-white text-center" style="background-color: #8b5cf6; font-size: 0.65rem; padding: 0.2rem 0.4rem;">Repetitive</span>
-                                                }
-                                            </div>
-                                        </td>
-                                        <td class="text-end">
-                                            <a asp-action="Detail" asp-route-id="@item.Id" class="btn btn-sm btn-dark px-3 fw-semibold">
-                                                <i class="bi bi-pencil-square me-1"></i> Review
-                                            </a>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-                else
-                {
-                    <div class="text-center py-5">
-                        <i class="bi bi-folder2-open text-muted" style="font-size: 3rem;"></i>
-                        <h5 class="mt-3 fw-bold text-secondary">No grievances match the filters</h5>
-                        <p class="text-secondary small mb-0">Try expanding your filter parameters.</p>
-                    </div>
-                }
-            </div>
-        </div>
-    </div>
-
-    <!-- Right Column: Quick Actions & Audit Activities -->
-    <div class="col-lg-4">
-        <!-- Quick Actions Card -->
-        <div class="card shadow-sm border-0 rounded-3 bg-white mb-4">
-            <div class="card-header bg-light py-3">
-                <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-lightning-charge-fill me-2 text-warning"></i> Quick Actions</h5>
-            </div>
-            <div class="card-body d-flex flex-column gap-2 p-3">
-                <a asp-controller="Account" asp-action="Register" class="btn btn-outline-primary text-start py-2.5 px-3 rounded-3 fw-semibold transition-btn">
-                    <i class="bi bi-person-plus-fill me-2"></i> Register Academic Staff
-                </a>
-                <a asp-controller="Admin" asp-action="Users" class="btn btn-outline-info text-start py-2.5 px-3 rounded-3 fw-semibold transition-btn">
-                    <i class="bi bi-people-fill me-2"></i> Manage User Accounts
-                </a>
-                <a asp-controller="Admin" asp-action="Departments" class="btn btn-outline-secondary text-start py-2.5 px-3 rounded-3 fw-semibold transition-btn">
-                    <i class="bi bi-building-fill me-2"></i> Setup Departments
-                </a>
-                <a asp-controller="Admin" asp-action="AuditLog" class="btn btn-outline-danger text-start py-2.5 px-3 rounded-3 fw-semibold transition-btn">
-                    <i class="bi bi-journal-text me-2"></i> View System Audit Logs
-                </a>
-            </div>
-        </div>
-
-        <!-- Recent Activity Card -->
-        <div class="card shadow-sm border-0 rounded-3 bg-white">
-            <div class="card-header bg-light py-3">
-                <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-activity me-2 text-danger"></i> Recent System Activity</h5>
-            </div>
-            <div class="card-body p-3">
-                @if (Model.RecentActivity.Any())
-                {
-                    <ul class="list-group list-group-flush timeline-widget small">
-                        @foreach (var log in Model.RecentActivity)
+    
+    <table class="dash-table">
+        <thead>
+            <tr>
+                <th>TICKET ID</th>
+                <th>STUDENT</th>
+                <th>DEPARTMENT</th>
+                <th>PRIORITY</th>
+                <th>STATUS</th>
+                <th>DATE</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Grievances.Take(4))
+            {
+                <tr>
+                    <td class="td-ticket">@item.TicketNumber</td>
+                    <td class="td-student">@(item.IsAnonymous ? "Anonymous" : item.Student?.FullName)</td>
+                    <td>@item.Department?.Name</td>
+                    <td>
+                        @if (item.Priority == GMS.Web.Models.Entities.GrievancePriority.High)
                         {
-                            <li class="list-group-item bg-transparent border-0 px-0 pb-3">
-                                <div class="d-flex justify-content-between text-muted mb-1">
-                                    <span class="fw-bold text-dark">@log.Action</span>
-                                    <span>@log.Timestamp.ToString("t")</span>
-                                </div>
-                                <p class="mb-0 text-secondary" style="font-size:0.8rem;">@log.Details</p>
-                                <small class="text-muted d-block mt-0.5">By: @(log.User?.FullName ?? "System")</small>
-                            </li>
+                            <span class="pill pill-high">High</span>
                         }
-                    </ul>
-                }
-                else
-                {
-                    <p class="text-center text-muted small my-3">No recent system activity logged.</p>
-                }
-            </div>
-        </div>
-    </div>
+                        else
+                        {
+                            <span class="pill pill-medium">@item.Priority.ToString()</span>
+                        }
+                    </td>
+                    <td>
+                        @if (item.IsOverdue && item.Status != GMS.Web.Models.Entities.GrievanceStatus.Resolved)
+                        {
+                            <span class="pill pill-overdue"><span class="pill-dot"></span>Overdue</span>
+                        }
+                        else if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.Open)
+                        {
+                            <span class="pill pill-open"><span class="pill-dot"></span>Open</span>
+                        }
+                        else if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.InProgress)
+                        {
+                            <span class="pill pill-progress"><span class="pill-dot"></span>In Progress</span>
+                        }
+                        else if (item.Status == GMS.Web.Models.Entities.GrievanceStatus.Resolved)
+                        {
+                            <span class="pill pill-resolved"><span class="pill-dot"></span>Resolved</span>
+                        }
+                    </td>
+                    <td>@item.SubmittedAt.ToString("yyyy-MM-dd")</td>
+                </tr>
+            }
+            @if(!Model.Grievances.Any())
+            {
+                <tr><td colspan="6" class="text-center text-muted py-4">No recent complaints.</td></tr>
+            }
+        </tbody>
+    </table>
 </div>
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         $(document).ready(function() {
-            // Safe JSON parses
-            var deptData = JSON.parse('@Html.Raw(Model.ComplaintsByDepartmentJson)');
             var catData = JSON.parse('@Html.Raw(Model.ComplaintsByCategoryJson)');
             var trendData = JSON.parse('@Html.Raw(Model.MonthlyComplaintTrendJson)');
-            var openClosedData = JSON.parse('@Html.Raw(Model.OpenVsClosedJson)');
-            var resTimeData = JSON.parse('@Html.Raw(Model.AverageResolutionTimeJson)');
 
-            // Department Chart
-            new Chart(document.getElementById('deptChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: deptData.map(d => d.label),
-                    datasets: [{
-                        data: deptData.map(d => d.count),
-                        backgroundColor: ['#1e40af', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } }
-                }
-            });
-
-            // Category Chart
+            // By Category (Donut Chart)
+            const colors = ['#3b82f6', '#14b8a6', '#f59e0b', '#22c55e', '#ef4444'];
             new Chart(document.getElementById('catChart'), {
-                type: 'bar',
+                type: 'doughnut',
                 data: {
                     labels: catData.map(c => c.label),
                     datasets: [{
-                        label: 'Tickets',
                         data: catData.map(c => c.count),
-                        backgroundColor: '#10b981'
+                        backgroundColor: colors.slice(0, catData.length),
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                    cutout: '70%',
+                    plugins: { 
+                        legend: { 
+                            position: 'right', 
+                            labels: { 
+                                boxWidth: 10, 
+                                boxHeight: 10, 
+                                usePointStyle: true, 
+                                font: { size: 12, family: "'Inter', sans-serif" },
+                                color: '#475569'
+                            } 
+                        } 
+                    }
                 }
             });
 
-            // Monthly Trend Chart
+            // Complaints by Month (Bar Chart)
             new Chart(document.getElementById('trendChart'), {
-                type: 'line',
+                type: 'bar',
                 data: {
                     labels: trendData.map(t => t.label),
                     datasets: [{
-                        label: 'Grievances',
+                        label: 'Submitted',
                         data: trendData.map(t => t.count),
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        fill: true,
-                        tension: 0.3
+                        backgroundColor: '#22c55e',
+                        borderRadius: 4,
+                        barPercentage: 0.5
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
-                }
-            });
-
-            // Average Resolution Time Chart
-            new Chart(document.getElementById('resTimeChart'), {
-                type: 'bar',
-                data: {
-                    labels: resTimeData.map(r => r.label),
-                    datasets: [{
-                        label: 'Days',
-                        data: resTimeData.map(r => r.count),
-                        backgroundColor: '#f59e0b'
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { x: { beginAtZero: true } }
-                }
-            });
-
-            // Open vs Closed Chart
-            new Chart(document.getElementById('openClosedChart'), {
-                type: 'pie',
-                data: {
-                    labels: openClosedData.map(o => o.label),
-                    datasets: [{
-                        data: openClosedData.map(o => o.count),
-                        backgroundColor: ['#ef4444', '#10b981']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } }
+                    plugins: { 
+                        legend: { 
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 10,
+                                boxHeight: 10,
+                                usePointStyle: false,
+                                font: { size: 12 }
+                            }
+                        } 
+                    },
+                    scales: { 
+                        y: { 
+                            beginAtZero: true, 
+                            ticks: { stepSize: 15, color: '#94a3b8' },
+                            grid: { color: '#f1f5f9', drawBorder: false }
+                        },
+                        x: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { display: false, drawBorder: false }
+                        }
+                    }
                 }
             });
         });
