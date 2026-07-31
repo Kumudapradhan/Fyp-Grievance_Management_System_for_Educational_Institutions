@@ -1,90 +1,242 @@
 @model GMS.Web.Models.ViewModels.GrievanceSubmitViewModel
 
 @{
-    ViewData["Title"] = "File New Grievance";
+    ViewData["Title"] = "Submit Grievance";
+    ViewData["ActiveNav"] = "SubmitGrievance";
     Layout = "_StudentLayout";
 }
 
-<div class="card shadow-sm border-0 rounded-3 bg-white">
-    <div class="card-header bg-primary text-white py-3">
-        <h5 class="mb-0 fw-bold"><i class="bi bi-file-earmark-plus-fill me-2"></i> Submit New Grievance</h5>
+<style>
+    /* ── Outer wrapper centered with horizontal gaps ── */
+    .sg-wrap {
+        max-width: 660px;
+        margin: 0 auto;
+        padding: 0 0 3rem 0;
+    }
+
+    /* ── Page heading ── */
+    .sg-head { margin-bottom: 1.5rem; }
+    .sg-head h1 { font-size: 1.45rem; font-weight: 800; color: var(--text-heading); letter-spacing: -0.02em; margin-bottom: 0.25rem; }
+    .sg-head p  { font-size: 0.875rem; color: var(--text-sub); margin: 0; }
+
+    /* ── Main form card ── */
+    .sg-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 2.25rem 2.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+
+    /* ── Field labels ── */
+    .sg-label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-heading);
+        margin-bottom: 0.45rem;
+    }
+    .sg-label .req { color: #ef4444; margin-left: 2px; }
+
+    /* ── Text inputs & selects ── */
+    .sg-input, .sg-select, .sg-textarea {
+        width: 100%;
+        padding: 0.65rem 1rem;
+        border: 1.5px solid var(--input-border);
+        border-radius: 10px;
+        font-size: 0.875rem;
+        font-family: 'Inter', sans-serif;
+        color: var(--input-text);
+        background: var(--input-bg);
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        box-sizing: border-box;
+    }
+    .sg-input:focus, .sg-select:focus, .sg-textarea:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+    }
+    .sg-input::placeholder, .sg-textarea::placeholder { color: var(--text-muted); }
+    .sg-textarea { resize: vertical; min-height: 130px; line-height: 1.6; }
+    .sg-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.85rem center;
+        padding-right: 2.2rem;
+    }
+
+    /* ── Row spacing ── */
+    .sg-row { margin-bottom: 1.4rem; }
+    .sg-two { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.4rem; }
+    @@media (max-width: 600px) { .sg-two { grid-template-columns: 1fr; } }
+
+    /* ── Priority radios ── */
+    .pr-group { display: flex; align-items: center; gap: 1.5rem; margin-top: 0.5rem; flex-wrap: wrap; }
+    .pr-opt   { display: flex; align-items: center; gap: 0.45rem; cursor: pointer; }
+    .pr-opt input[type="radio"] { width: 17px; height: 17px; accent-color: var(--primary); cursor: pointer; margin: 0; }
+    .pr-opt span { font-size: 0.875rem; font-weight: 500; color: var(--text-main); }
+
+    /* ── Anonymous toggle row ── */
+    .anon-row {
+        display: flex; align-items: center; justify-content: space-between;
+        background: var(--item-secondary-bg); border: 1.5px solid var(--item-secondary-border); border-radius: 12px;
+        padding: 1rem 1.25rem; margin-bottom: 1.4rem;
+    }
+    .anon-title { font-size: 0.875rem; font-weight: 700; color: var(--text-heading); margin-bottom: 0.15rem; }
+    .anon-sub   { font-size: 0.78rem; color: var(--text-sub); }
+
+    /* Toggle switch */
+    .toggle-wrap { position: relative; width: 44px; height: 24px; flex-shrink: 0; margin-left: 1rem; }
+    .toggle-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-slider {
+        position: absolute; inset: 0; cursor: pointer;
+        background: #cbd5e1; border-radius: 999px; transition: background 0.25s;
+    }
+    .toggle-slider::before {
+        content: ''; position: absolute;
+        width: 18px; height: 18px; border-radius: 50%; background: white;
+        top: 3px; left: 3px; transition: transform 0.25s;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+    }
+    .toggle-wrap input:checked + .toggle-slider { background: var(--primary); }
+    .toggle-wrap input:checked + .toggle-slider::before { transform: translateX(20px); }
+
+    /* ── Drop zone ── */
+    .sg-dropzone {
+        border: 2px dashed var(--border-color); border-radius: 12px;
+        padding: 2.25rem 1rem; text-align: center;
+        cursor: pointer; transition: border-color 0.2s, background 0.2s;
+        position: relative; background: var(--item-secondary-bg);
+    }
+    .sg-dropzone:hover, .sg-dropzone.drag-over { border-color: var(--primary); background: var(--hover-bg); }
+    .sg-dropzone input[type="file"] {
+        position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .sg-dz-icon { font-size: 1.6rem; color: var(--text-muted); margin-bottom: 0.4rem; }
+    .sg-dz-text { font-size: 0.875rem; color: var(--text-sub); font-weight: 500; line-height: 1.6; }
+    .sg-dz-browse { color: var(--primary); font-weight: 600; text-decoration: underline; cursor: pointer; }
+    .sg-dz-hint { font-size: 0.76rem; color: var(--text-muted); margin-top: 0.25rem; }
+    #fileNames { margin-top: 0.5rem; font-size: 0.79rem; color: var(--text-sub); }
+
+    /* ── Footer buttons ── */
+    .sg-footer {
+        display: flex; align-items: center; gap: 0.85rem;
+        margin-top: 2rem; padding-top: 1.5rem;
+        border-top: 1px solid var(--border-color);
+    }
+    .btn-cancel {
+        padding: 0.65rem 1.85rem; border-radius: 10px;
+        border: 1.5px solid var(--border-color); background: var(--card-bg);
+        font-size: 0.875rem; font-weight: 600; color: var(--text-main);
+        cursor: pointer; transition: background 0.15s, border-color 0.15s;
+        text-decoration: none; display: inline-flex; align-items: center;
+        white-space: nowrap;
+    }
+    .btn-cancel:hover { background: var(--hover-bg); border-color: var(--border-color); color: var(--text-heading); }
+    .btn-submit {
+        flex: 1; padding: 0.7rem 1.5rem; border-radius: 10px;
+        background: var(--primary); color: white; border: none;
+        font-size: 0.9rem; font-weight: 700; cursor: pointer;
+        transition: background 0.2s;
+        display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+    }
+    .btn-submit:hover { background: #1d4ed8; }
+
+    /* validation */
+    .sg-err { font-size: 0.77rem; color: #ef4444; margin-top: 0.3rem; min-height: 0.5rem; }
+    .char-hint { font-size: 0.74rem; color: #94a3b8; text-align: right; margin-top: 0.25rem; }
+    .char-hint.ok { color: #16a34a; font-weight: 600; }
+</style>
+
+<div class="sg-wrap">
+    <div class="sg-head">
+        <h1>Submit a Grievance</h1>
+        <p>Fill in the details below. All submissions are handled confidentially.</p>
     </div>
-    <div class="card-body p-4">
-        <form asp-action="Submit" method="post" enctype="multipart/form-data">
+
+    <div class="sg-card">
+        <form asp-action="Submit" method="post" enctype="multipart/form-data" id="submitForm">
             @Html.AntiForgeryToken()
+            <input asp-for="IncidentDate" type="hidden" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+            <div asp-validation-summary="ModelOnly" class="sg-err"></div>
 
-            <div asp-validation-summary="ModelOnly" class="text-danger mb-4 small"></div>
-
-            <div class="mb-3">
-                <label asp-for="Title" class="form-label fw-semibold"></label>
-                <input asp-for="Title" class="form-control form-control-gms" placeholder="Brief subject (e.g. Wi-Fi down in blocks)" />
-                <span asp-validation-for="Title" class="text-danger small"></span>
+            <div class="sg-row">
+                <label class="sg-label">Title <span class="req">*</span></label>
+                <input asp-for="Title" class="sg-input" placeholder="Brief title of your complaint" />
+                <div class="sg-err"><span asp-validation-for="Title"></span></div>
             </div>
 
-            <div class="row mb-3">
-                <div class="col-sm-6">
-                    <label asp-for="CategoryId" class="form-label fw-semibold"></label>
-                    <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-select form-control-gms" id="categoryDropdown">
-                        <option value="">-- Choose Category --</option>
+            <div class="sg-row">
+                <label class="sg-label">Description <span class="req">*</span></label>
+                <textarea asp-for="Description" class="sg-textarea" id="descArea"
+                    placeholder="Describe your grievance in detail. Include dates, people involved, and the impact on you."></textarea>
+                <div class="char-hint" id="charHint">0 / 50 min</div>
+                <div class="sg-err"><span asp-validation-for="Description"></span></div>
+            </div>
+
+            <div class="sg-two">
+                <div>
+                    <label class="sg-label">Category</label>
+                    <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="sg-select" id="catSelect">
+                        <option value=""></option>
                     </select>
-                    <span asp-validation-for="CategoryId" class="text-danger small"></span>
+                    <div class="sg-err"><span asp-validation-for="CategoryId"></span></div>
                 </div>
-                
-                <!-- Dynamic routing display (FR-03, FR-06) -->
-                <div class="col-sm-6">
-                    <label class="form-label fw-semibold">Auto-Routed Department</label>
-                    <div class="p-2 border rounded-3 bg-light d-flex align-items-center" style="min-height: 43px;">
-                        <i class="bi bi-info-circle text-primary me-2 fs-5"></i>
-                        <span id="routingInfo" class="fw-medium text-secondary">Please select a category</span>
-                    </div>
+                <div>
+                    <label class="sg-label">Department</label>
+                    <select class="sg-select" id="deptDisplay" disabled>
+                        <option id="deptOpt">Auto-selected by category</option>
+                    </select>
                 </div>
             </div>
 
-            <div class="mb-3">
-                <label asp-for="IncidentDate" class="form-label fw-semibold"></label>
-                <input asp-for="IncidentDate" type="date" class="form-control form-control-gms" max="@DateTime.Today.ToString("yyyy-MM-dd")" />
-                <span asp-validation-for="IncidentDate" class="text-danger small"></span>
-            </div>
-
-            <div class="mb-3">
-                <label asp-for="Description" class="form-label fw-semibold"></label>
-                <textarea asp-for="Description" class="form-control form-control-gms" id="descTextArea" rows="6" placeholder="Provide complete facts, locations, and details of your grievance... (minimum 50 characters)"></textarea>
-                <div class="d-flex justify-content-between mt-1">
-                    <span asp-validation-for="Description" class="text-danger small"></span>
-                    <span class="small text-muted" id="charCounter">0 / 50 characters minimum</span>
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <label asp-for="EvidenceFiles" class="form-label fw-semibold"></label>
-                <input asp-for="EvidenceFiles" type="file" multiple class="form-control form-control-gms" />
-                <small class="form-text text-secondary d-block mt-1">
-                    <i class="bi bi-info-circle me-1"></i> You can select multiple documents or images. Allowed types: PDF, PNG, JPG, JPEG, DOCX. Max size: 5MB per file.
-                </small>
-            </div>
-
-            <hr class="my-4" />
-
-            <!-- Anonymity Option (FR-05) -->
-            <div class="p-3 border rounded-3 border-warning bg-warning bg-opacity-10 mb-4">
-                <div class="form-check">
-                    <input asp-for="IsAnonymous" class="form-check-input" id="anonymousCheckbox" />
-                    <label class="form-check-label fw-bold text-warning-emphasis" for="anonymousCheckbox">
-                        Submit Anonymously
+            <div class="sg-row">
+                <label class="sg-label">Priority</label>
+                <div class="pr-group">
+                    <label class="pr-opt">
+                        <input type="radio" name="Priority" value="Low" />
+                        <span>Low</span>
+                    </label>
+                    <label class="pr-opt">
+                        <input type="radio" name="Priority" value="Medium" checked />
+                        <span>Medium</span>
+                    </label>
+                    <label class="pr-opt">
+                        <input type="radio" name="Priority" value="High" />
+                        <span>High</span>
                     </label>
                 </div>
-                <p class="text-secondary small mb-0 mt-1">
-                    By checking this, your student ID and name will <strong>NOT</strong> be saved alongside the ticket. Administrators will only see the ticket details, not your identity. Note that anonymous tickets cannot be tracked in your student dashboard history after logging out; you must save the ticket reference to track updates manually.
-                </p>
             </div>
 
-            <div class="d-flex gap-3">
-                <button type="submit" class="btn btn-primary btn-gms-primary px-4 py-2.5">
-                    <i class="bi bi-send-fill me-2"></i> Submit Grievance
+            <div class="anon-row">
+                <div class="anon-info">
+                    <div class="anon-title">Submit Anonymously</div>
+                    <div class="anon-sub">Your identity will be hidden from staff and admins</div>
+                </div>
+                <label class="toggle-wrap">
+                    <input asp-for="IsAnonymous" type="checkbox" id="anonToggle" />
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="sg-row">
+                <label class="sg-label">Evidence / Attachments</label>
+                <div class="sg-dropzone" id="dropzone">
+                    <input asp-for="EvidenceFiles" type="file" multiple id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.docx" />
+                    <div class="sg-dz-icon"><i class="bi bi-upload"></i></div>
+                    <div class="sg-dz-text">Drag &amp; drop files here</div>
+                    <div class="sg-dz-text">or <span class="sg-dz-browse">browse files</span></div>
+                    <div class="sg-dz-hint">PDF, PNG, JPG up to 10MB</div>
+                    <div id="fileNames"></div>
+                </div>
+            </div>
+
+            <div class="sg-footer">
+                <a asp-action="MyGrievances" class="btn-cancel">Cancel</a>
+                <button type="submit" class="btn-submit">
+                    <i class="bi bi-send-fill"></i> Submit Complaint
                 </button>
-                <a asp-action="Index" class="btn btn-gms-secondary px-4 py-2.5">
-                    Cancel
-                </a>
             </div>
         </form>
     </div>
@@ -92,46 +244,46 @@
 
 @section Scripts {
     @await Html.PartialAsync("_ValidationScriptsPartial")
-
     <script>
-        $(document).ready(function () {
-            // 1. AJAX for dynamic department selection (FR-03)
-            $('#categoryDropdown').change(function () {
-                var categoryId = $(this).val();
-                if (categoryId) {
-                    $.ajax({
-                        url: '@Url.Action("GetDepartmentForCategory", "Grievance")',
-                        data: { categoryId: categoryId },
-                        success: function (data) {
-                            if (data.success) {
-                                $('#routingInfo').html('<strong>' + data.departmentName + '</strong>');
-                            } else {
-                                $('#routingInfo').text('General Administration');
-                            }
-                        },
-                        error: function () {
-                            $('#routingInfo').text('General Administration');
-                        }
-                    });
-                } else {
-                    $('#routingInfo').text('Please select a category');
-                }
-            });
-
-            // 2. Character counter for description min-length checks
-            $('#descTextArea').on('input', function () {
-                var len = $(this).val().length;
-                $('#charCounter').text(len + ' / 50 characters minimum');
-                if (len >= 50) {
-                    $('#charCounter').removeClass('text-muted').addClass('text-success fw-semibold');
-                } else {
-                    $('#charCounter').removeClass('text-success fw-semibold').addClass('text-muted');
-                }
-            });
-            
-            // Initial call if form fails validation and reloads
-            $('#descTextArea').trigger('input');
-            $('#categoryDropdown').trigger('change');
+        // Character counter
+        const descArea = document.getElementById('descArea');
+        const charHint = document.getElementById('charHint');
+        descArea.addEventListener('input', () => {
+            const len = descArea.value.length;
+            charHint.textContent = len + ' / 50 min';
+            charHint.className = len >= 50 ? 'char-hint ok' : 'char-hint';
         });
+        descArea.dispatchEvent(new Event('input'));
+
+        // Auto-fill department from category
+        const catSelect = document.getElementById('catSelect');
+        const deptOpt   = document.getElementById('deptOpt');
+        catSelect.addEventListener('change', () => {
+            const catId = catSelect.value;
+            if (!catId) { deptOpt.textContent = 'Auto-selected by category'; return; }
+            fetch('@Url.Action("GetDepartmentForCategory", "Grievance")?categoryId=' + catId)
+                .then(r => r.json())
+                .then(d => { deptOpt.textContent = d.success ? d.departmentName : 'General Administration'; })
+                .catch(() => { deptOpt.textContent = 'General Administration'; });
+        });
+        catSelect.dispatchEvent(new Event('change'));
+
+        // Drag & drop file zone
+        const dropzone  = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const fileNames = document.getElementById('fileNames');
+
+        ['dragenter','dragover'].forEach(e => dropzone.addEventListener(e, ev => { ev.preventDefault(); dropzone.classList.add('drag-over'); }));
+        ['dragleave','drop'].forEach(e => dropzone.addEventListener(e, ev => { ev.preventDefault(); dropzone.classList.remove('drag-over'); }));
+        dropzone.addEventListener('drop', ev => {
+            fileInput.files = ev.dataTransfer.files;
+            showFiles(ev.dataTransfer.files);
+        });
+        fileInput.addEventListener('change', () => showFiles(fileInput.files));
+
+        function showFiles(files) {
+            if (!files.length) { fileNames.textContent = ''; return; }
+            fileNames.textContent = Array.from(files).map(f => f.name).join(', ');
+        }
     </script>
 }

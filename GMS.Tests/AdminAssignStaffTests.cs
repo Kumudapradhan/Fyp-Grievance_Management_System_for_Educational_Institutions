@@ -55,7 +55,7 @@ namespace GMS.Tests
             var staffUser = new ApplicationUser { Id = "staff-1", FullName = "Staff Officer", Email = "staff@gms.edu" };
             context.Users.Add(staffUser);
 
-            var dept = new Department { Id = 1, Name = "IT Support" };
+            var dept = new Department { Id = 1, Name = "IT Support", StaffUserId = "staff-1" };
             var cat = new Category { Id = 1, Name = "IT Issue", DefaultDepartmentId = 1 };
             context.Departments.Add(dept);
             context.Categories.Add(cat);
@@ -130,7 +130,7 @@ namespace GMS.Tests
             var staffUser = new ApplicationUser { Id = "staff-1", FullName = "Staff Officer", Email = "staff@gms.edu" };
             context.Users.Add(staffUser);
 
-            var dept = new Department { Id = 1, Name = "IT Support" };
+            var dept = new Department { Id = 1, Name = "IT Support", StaffUserId = "staff-1" };
             var cat = new Category { Id = 1, Name = "IT Issue", DefaultDepartmentId = 1 };
             context.Departments.Add(dept);
             context.Categories.Add(cat);
@@ -179,6 +179,50 @@ namespace GMS.Tests
                 NotificationType.Assignment
             ), Times.Once);
 
+            Assert.IsInstanceOfType(result, typeof(RedirectToActionResult));
+        }
+
+        [TestMethod]
+        public async Task AssignStaff_ShouldRejectStaffFromAnotherDepartment()
+        {
+            using var context = GetInMemoryContext();
+
+            var staffUser = new ApplicationUser { Id = "staff-2", FullName = "Finance Officer", Email = "finance@gms.edu", Department = "Finance" };
+            context.Users.Add(staffUser);
+            context.Departments.AddRange(
+                new Department { Id = 1, Name = "IT Support" },
+                new Department { Id = 2, Name = "Finance", StaffUserId = "staff-2" });
+            context.Categories.Add(new Category { Id = 1, Name = "IT Issue", DefaultDepartmentId = 1 });
+            context.Grievances.Add(new Grievance
+            {
+                Id = 12,
+                TicketNumber = "T-112",
+                Title = "Test title that must meet the character count criteria which is minimum fifty characters.",
+                Description = "Test description that must meet the character count criteria which is minimum fifty characters.",
+                CategoryId = 1,
+                DepartmentId = 1,
+                Status = GrievanceStatus.Open
+            });
+            await context.SaveChangesAsync();
+
+            var httpContext = new DefaultHttpContext();
+            httpContext.User = new ClaimsPrincipal(new ClaimsIdentity(new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, "admin-1"),
+                new Claim(ClaimTypes.Role, "Administrator")
+            }));
+            var notificationService = new Mock<INotificationService>();
+            var controller = new AdminController(new Mock<IGrievanceService>().Object, new Mock<IRoutingService>().Object,
+                GetMockUserManager(staffUser, "staff-2", true), context, notificationService.Object)
+            {
+                ControllerContext = new ControllerContext { HttpContext = httpContext },
+                TempData = new TempDataDictionary(httpContext, Mock.Of<ITempDataProvider>())
+            };
+
+            var result = await controller.AssignStaff(12, "staff-2", null);
+
+            Assert.IsNull((await context.Grievances.FindAsync(12))!.AssignedStaffUserId);
+            notificationService.Verify(n => n.SendNotificationAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<NotificationType>()), Times.Never);
             Assert.IsInstanceOfType(result, typeof(RedirectToActionResult));
         }
     }

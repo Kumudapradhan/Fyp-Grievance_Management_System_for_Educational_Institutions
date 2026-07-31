@@ -2,11 +2,13 @@
 @inject GMS.Web.Data.ApplicationDbContext _layoutDb
 @inject Microsoft.AspNetCore.Identity.UserManager<GMS.Web.Models.Entities.ApplicationUser> _layoutUserMgr
 @{
-    Layout = "_Layout";
+    Layout = null;
 
     var currentStudentId = _layoutUserMgr.GetUserId(User);
     var unreadStudentNotifications = new List<GMS.Web.Models.Entities.Notification>();
     var unreadStudentCount = 0;
+    var userFullName = "Student";
+    var userInitials = "ST";
 
     if (!string.IsNullOrEmpty(currentStudentId))
     {
@@ -18,94 +20,565 @@
             .OrderByDescending(n => n.SentAt)
             .Take(5)
             .ToList();
+
+        var currentUser = _layoutDb.Users.FirstOrDefault(u => u.Id == currentStudentId);
+        if (currentUser != null)
+        {
+            userFullName = currentUser.FullName;
+            var parts = currentUser.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length > 0)
+            {
+                userInitials = parts.Length > 1 
+                    ? $"{parts[0][0]}{parts[parts.Length-1][0]}".ToUpper() 
+                    : parts[0][0].ToString().ToUpper();
+            }
+        }
     }
-}
 
-@section StudentNotificationBell {
-    <div class="dropdown me-3">
-        <button class="btn btn-link text-dark position-relative p-1" type="button" id="studentBellDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="text-decoration: none;">
-            <i class="bi bi-bell-fill fs-5 text-primary"></i>
-            @if (unreadStudentCount > 0)
-            {
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">
-                    @unreadStudentCount
-                </span>
-            }
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2" aria-labelledby="studentBellDropdown" style="width: 320px; max-height: 400px; overflow-y: auto; font-size: 0.85rem;">
-            <li class="dropdown-header fw-bold text-dark d-flex justify-content-between align-items-center border-bottom pb-2">
-                <span>Notifications (@unreadStudentCount)</span>
-                @if (unreadStudentCount > 0)
-                {
-                    <form asp-controller="Grievance" asp-action="MarkAllNotificationsRead" method="post" class="d-inline">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-link p-0 text-primary fw-semibold text-decoration-none small" style="font-size: 0.75rem;">Mark all as read</button>
-                    </form>
-                }
-            </li>
-            @if (unreadStudentNotifications.Any())
-            {
-                @foreach (var note in unreadStudentNotifications)
-                {
-                    <li>
-                        <a class="dropdown-item py-2.5 border-bottom text-wrap text-dark" asp-controller="Grievance" asp-action="Detail" asp-route-id="@note.GrievanceId">
-                            <div class="fw-semibold text-dark mb-0.5">@note.Grievance?.TicketNumber</div>
-                            <div class="text-secondary small">@note.Message</div>
-                            <div class="text-muted small mt-1 text-end" style="font-size: 0.7rem;">@note.SentAt.ToString("g")</div>
-                        </a>
-                    </li>
-                }
-            }
-            else
-            {
-                <li class="text-center py-4 text-muted">
-                    <i class="bi bi-bell-slash fs-4 d-block mb-1"></i>
-                    No unread notifications
-                </li>
-            }
-        </ul>
-    </div>
-}
+    // Profile picture path (null if none uploaded)
+    string? userProfilePic = null;
+    if (!string.IsNullOrEmpty(currentStudentId))
+    {
+        var appUser = _layoutDb.Users
+            .OfType<GMS.Web.Models.Entities.ApplicationUser>()
+            .FirstOrDefault(u => u.Id == currentStudentId);
+        userProfilePic = appUser?.ProfilePicturePath;
+    }
 
-<div class="row">
-    <!-- Student Sidebar -->
-    <div class="col-lg-3 mb-4">
-        <div class="card shadow-sm border-0 rounded-3 overflow-hidden">
-            <div class="card-header bg-primary text-white py-3">
-                <h5 class="card-title mb-0"><i class="bi bi-person-fill-gear me-2"></i> Student Hub</h5>
-            </div>
-            <div class="list-group list-group-flush">
-                <a asp-controller="Grievance" asp-action="Index" class="list-group-item list-group-item-action py-3 border-0 d-flex align-items-center">
-                    <i class="bi bi-grid-fill text-primary fs-5 me-3"></i>
-                    <div>
-                        <span class="d-block fw-semibold text-dark">My History</span>
-                        <small class="text-muted">Track filed grievances</small>
-                    </div>
-                </a>
-                <a asp-controller="Grievance" asp-action="Submit" class="list-group-item list-group-item-action py-3 border-0 d-flex align-items-center border-top">
-                    <i class="bi bi-file-earmark-plus-fill text-success fs-5 me-3"></i>
-                    <div>
-                        <span class="d-block fw-semibold text-dark">File New Ticket</span>
-                        <small class="text-muted">Submit a complaint</small>
-                    </div>
-                </a>
-                <a asp-controller="Grievance" asp-action="Track" class="list-group-item list-group-item-action py-3 border-0 d-flex align-items-center border-top">
-                    <i class="bi bi-search text-warning fs-5 me-3"></i>
-                    <div>
-                        <span class="d-block fw-semibold text-dark">Track Ticket</span>
-                        <small class="text-muted">Search by code</small>
-                    </div>
-                </a>
+    var activeNav = ViewData["ActiveNav"] as string ?? "Dashboard";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — GMS</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <script>
+        (function() {
+            var theme = localStorage.getItem('gms_theme') || 'light';
+            function apply(t) {
+                var actual = (t === 'dark') ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', actual);
+                document.documentElement.setAttribute('data-bs-theme', actual);
+            }
+            apply(theme);
+            window.applyGmsTheme = function(t) {
+                localStorage.setItem('gms_theme', t);
+                apply(t);
+            };
+        })();
+    </script>
+    <style>
+        :root, [data-theme="light"] {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --dark-sidebar: #0f172a;
+            --dark-sidebar-hover: #1e293b;
+            --dark-sidebar-active: #1e3a8a;
+            --body-bg: #f8fafc;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --top-header-bg: #ffffff;
+            --text-heading: #0f172a;
+            --text-main: #334155;
+            --text-muted: #94a3b8;
+            --text-sub: #64748b;
+            --input-bg: #ffffff;
+            --input-border: #e2e8f0;
+            --input-text: #0f172a;
+            --hover-bg: #f8fafc;
+            --item-secondary-bg: #f8fafc;
+            --item-secondary-border: #f1f5f9;
+            --font: 'Inter', sans-serif;
+        }
+
+        [data-theme="dark"] {
+            --primary: #3b82f6;
+            --primary-light: #1e293b;
+            --dark-sidebar: #080c14;
+            --dark-sidebar-hover: #1e293b;
+            --dark-sidebar-active: #1d4ed8;
+            --body-bg: #0b0f19;
+            --border-color: #1e293b;
+            --card-bg: #111827;
+            --top-header-bg: #111827;
+            --text-heading: #f9fafb;
+            --text-main: #cbd5e1;
+            --text-muted: #9ca3af;
+            --text-sub: #9ca3af;
+            --input-bg: #1f2937;
+            --input-border: #374151;
+            --input-text: #f9fafb;
+            --hover-bg: #1f2937;
+            --item-secondary-bg: #1f2937;
+            --item-secondary-border: #374151;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font); background: var(--body-bg); color: var(--text-main); min-height: 100vh; display: flex; overflow-x: hidden; transition: background 0.2s, color 0.2s; }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: 260px; height: 100vh; background: var(--dark-sidebar);
+            display: flex; flex-direction: column; position: fixed; top: 0; left: 0; z-index: 100;
+            border-right: 1px solid rgba(255,255,255,0.05);
+        }
+        .sidebar-brand {
+            padding: 1.5rem 1.75rem; display: flex; align-items: center; gap: 0.6rem;
+            text-decoration: none; color: white; font-weight: 800; font-size: 1.25rem;
+            letter-spacing: -0.03em; border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .sidebar-brand-icon {
+            width: 34px; height: 34px; border-radius: 9px;
+            background: var(--primary); display: flex; align-items: center;
+            justify-content: center; font-size: 1.1rem; color: white;
+        }
+        .sidebar-menu-label {
+            padding: 1.5rem 1.75rem 0.5rem; font-size: 0.72rem; font-weight: 700;
+            color: #64748b; text-transform: uppercase; letter-spacing: 0.08em;
+        }
+        .sidebar-menu { list-style: none; display: flex; flex-direction: column; gap: 0.25rem; padding: 0 0.75rem; }
+        .sidebar-link {
+            display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem;
+            color: #94a3b8; text-decoration: none; font-size: 0.925rem; font-weight: 500;
+            border-radius: 8px; transition: background 0.15s, color 0.15s;
+        }
+        .sidebar-link:hover { background: var(--dark-sidebar-hover); color: white; }
+        .sidebar-link.active { background: var(--primary); color: white; font-weight: 600; }
+        .sidebar-link i { font-size: 1.1rem; }
+
+        /* Sidebar profile */
+        .sidebar-footer {
+            margin-top: auto; padding: 1.25rem; border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex; flex-direction: column; gap: 0.85rem;
+        }
+        .sidebar-profile { display: flex; align-items: center; gap: 0.75rem; }
+        .profile-avatar {
+            width: 40px; height: 40px; border-radius: 50%; background: var(--primary);
+            color: white; font-size: 0.95rem; font-weight: 700; display: flex;
+            align-items: center; justify-content: center; border: 1.5px solid rgba(255,255,255,0.2);
+        }
+        .profile-info { overflow: hidden; }
+        .profile-name { font-size: 0.875rem; font-weight: 600; color: white; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+        .profile-role { font-size: 0.75rem; color: #64748b; font-weight: 500; }
+        .btn-logout {
+            display: flex; align-items: center; gap: 0.5rem; color: #94a3b8;
+            font-size: 0.85rem; font-weight: 600; text-decoration: none; padding-left: 0.25rem;
+            transition: color 0.15s; background: none; border: none; cursor: pointer; width: 100%; text-align: left;
+        }
+        .btn-logout:hover { color: #f87171; }
+
+        /* ── MAIN CONTENT AREA ── */
+        .main-wrapper {
+            margin-left: 260px; flex: 1; min-height: 100vh;
+            display: flex; flex-direction: column;
+        }
+
+        /* Top Header */
+        .top-header {
+            height: 70px; background: var(--top-header-bg); border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 2rem; position: sticky; top: 0; z-index: 90;
+        }
+        .header-title { font-size: 1.25rem; font-weight: 700; color: var(--text-heading); letter-spacing: -0.02em; }
+        .header-actions { display: flex; align-items: center; gap: 1rem; }
+
+        /* Header Icons */
+        .icon-btn {
+            width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border-color);
+            background: var(--card-bg); color: var(--text-main); display: flex; align-items: center;
+            justify-content: center; font-size: 1.15rem; cursor: pointer; position: relative;
+            transition: background 0.15s, color 0.15s; text-decoration: none;
+        }
+        .icon-btn:hover { background: var(--hover-bg); color: var(--text-heading); }
+        .icon-badge {
+            position: absolute; top: -1px; right: -1px; width: 8px; height: 8px;
+            border-radius: 50%; background: #ef4444; border: 1.5px solid white;
+        }
+        .header-avatar {
+            width: 38px; height: 38px; border-radius: 50%; background: var(--primary);
+            color: white; font-size: 0.85rem; font-weight: 700; display: flex;
+            align-items: center; justify-content: center; border: 1px solid var(--border-color);
+        }
+
+        /* Content Container */
+        .content-body { padding: 2rem 2.5rem; flex: 1; background: var(--body-bg); }
+
+        /* Shared Card Component */
+        .page-card {
+            background: var(--card-bg); border-radius: 16px; border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Dark mode overrides for Bootstrap dropdowns */
+        [data-theme="dark"] .dropdown-menu {
+            background-color: #1f2937 !important;
+            border-color: #374151 !important;
+            color: #f9fafb !important;
+        }
+        [data-theme="dark"] .dropdown-item {
+            color: #e5e7eb !important;
+        }
+        [data-theme="dark"] .dropdown-item:hover {
+            background-color: #374151 !important;
+            color: #ffffff !important;
+        }
+        [data-theme="dark"] .dropdown-header {
+            color: #f9fafb !important;
+        }
+        [data-theme="dark"] .dropdown-divider {
+            border-color: #374151 !important;
+        }
+
+        /* ── DARK MODE COMPONENT OVERRIDES ── */
+        [data-theme="dark"] .ps-card,
+        [data-theme="dark"] .sg-card,
+        [data-theme="dark"] .tk-card,
+        [data-theme="dark"] .nt-item,
+        [data-theme="dark"] .nt-empty,
+        [data-theme="dark"] .mg-card,
+        [data-theme="dark"] .page-card,
+        [data-theme="dark"] .card {
+            background-color: #111827 !important;
+            border-color: #1e293b !important;
+            color: #f9fafb !important;
+        }
+
+        [data-theme="dark"] .search-input,
+        [data-theme="dark"] .ps-input,
+        [data-theme="dark"] .ps-select,
+        [data-theme="dark"] .sg-input,
+        [data-theme="dark"] .sg-select,
+        [data-theme="dark"] .sg-textarea,
+        [data-theme="dark"] .tk-search-input,
+        [data-theme="dark"] .btn-view,
+        [data-theme="dark"] .chip {
+            background-color: #1f2937 !important;
+            border-color: #374151 !important;
+            color: #f9fafb !important;
+        }
+
+        [data-theme="dark"] .ps-heading,
+        [data-theme="dark"] .ps-card-title,
+        [data-theme="dark"] .ps-label,
+        [data-theme="dark"] .ps-toggle-title,
+        [data-theme="dark"] .sg-head h1,
+        [data-theme="dark"] .sg-label,
+        [data-theme="dark"] .tk-title,
+        [data-theme="dark"] .nt-title,
+        [data-theme="dark"] .nt-msg,
+        [data-theme="dark"] .mg-title,
+        [data-theme="dark"] .ticket-ttl,
+        [data-theme="dark"] .table-gms2 th {
+            color: #f9fafb !important;
+        }
+
+        [data-theme="dark"] .ps-toggle-sub,
+        [data-theme="dark"] .sg-head p,
+        [data-theme="dark"] .nt-sub,
+        [data-theme="dark"] .nt-time,
+        [data-theme="dark"] .mg-sub,
+        [data-theme="dark"] .ticket-dept,
+        [data-theme="dark"] .ps-upload-hint {
+            color: #9ca3af !important;
+        }
+
+        [data-theme="dark"] .ps-input[readonly] {
+            background-color: #1f2937 !important;
+            color: #9ca3af !important;
+        }
+
+        [data-theme="dark"] .sg-dropzone {
+            background-color: #1f2937 !important;
+            border-color: #374151 !important;
+            color: #9ca3af !important;
+        }
+
+        [data-theme="dark"] .tk-metric-box {
+            background-color: #1f2937 !important;
+            border-color: #374151 !important;
+        }
+
+        [data-theme="dark"] .theme-group {
+            background-color: #1f2937 !important;
+        }
+
+        [data-theme="dark"] .theme-btn {
+            color: #9ca3af !important;
+        }
+
+        [data-theme="dark"] .theme-btn.active {
+            background-color: #2563eb !important;
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .table-gms2 thead tr {
+            background-color: #1f2937 !important;
+        }
+
+        [data-theme="dark"] .table-gms2 td {
+            border-bottom-color: #1e293b !important;
+            color: #cbd5e1 !important;
+        }
+
+        [data-theme="dark"] .table-gms2 tbody tr:hover td {
+            background-color: #1f2937 !important;
+        }
+
+        [data-theme="dark"] .nt-item.read {
+            background-color: #111827 !important;
+            border-color: #1e293b !important;
+        }
+
+        [data-theme="dark"] .nt-item.unread {
+            background-color: #1e293b !important;
+            border-color: #3b82f6 !important;
+        }
+
+        [data-theme="dark"] .btn-upload-photo {
+            background-color: #1f2937 !important;
+            border-color: #3b82f6 !important;
+            color: #60a5fa !important;
+        }
+
+        [data-theme="dark"] .dropdown-menu {
+            background-color: #1f2937 !important;
+            border-color: #374151 !important;
+            color: #f9fafb !important;
+        }
+
+        [data-theme="dark"] .dropdown-item {
+            color: #e5e7eb !important;
+        }
+
+        [data-theme="dark"] .dropdown-item:hover {
+            background-color: #374151 !important;
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .dropdown-header {
+            color: #f9fafb !important;
+        }
+
+        [data-theme="dark"] .dropdown-divider {
+            border-color: #374151 !important;
+        }
+
+        /* Status Badges */
+        .badge-status {
+            display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.85rem;
+            border-radius: 999px; font-size: 0.8rem; font-weight: 600; text-transform: capitalize;
+        }
+        .badge-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+        .badge-status-open { background: #eff6ff; color: #1d4ed8; }
+        .badge-status-open::before { background: #1d4ed8; }
+        .badge-status-progress { background: #fffbeb; color: #b45309; }
+        .badge-status-progress::before { background: #b45309; }
+        .badge-status-resolved { background: #f0fdf4; color: #15803d; }
+        .badge-status-resolved::before { background: #15803d; }
+        .badge-status-overdue { background: #fef2f2; color: #b91c1c; }
+        .badge-status-overdue::before { background: #b91c1c; }
+
+        /* Priority Badges */
+        .badge-priority {
+            display: inline-flex; align-items: center; padding: 0.25rem 0.65rem;
+            border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+        }
+        .badge-priority-low { background: #f0fdf4; color: #166534; }
+        .badge-priority-medium { background: #fffbeb; color: #92400e; }
+        .badge-priority-high { background: #fef2f2; color: #991b1b; }
+
+        /* Responsive Breakpoints */
+        @@media (max-width: 992px) {
+            .sidebar { transform: translateX(-100%); transition: transform 0.2s ease; }
+            .sidebar.show { transform: translateX(0); }
+            .main-wrapper { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Hidden Logout Form -->
+<form id="logoutForm" asp-controller="Account" asp-action="Logout" method="post" class="d-none">
+    @Html.AntiForgeryToken()
+</form>
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebarMenu">
+    <a class="sidebar-brand" asp-controller="Grievance" asp-action="Index">
+        <div class="sidebar-brand-icon"><i class="bi bi-shield-check"></i></div>
+        GMS
+    </a>
+
+    <div class="sidebar-menu-label">Student Portal</div>
+    <ul class="sidebar-menu">
+        <li>
+            <a asp-controller="Grievance" asp-action="Index" class="sidebar-link @(activeNav == "Dashboard" ? "active" : "")">
+                <i class="bi bi-grid"></i> Dashboard
+            </a>
+        </li>
+        <li>
+            <a asp-controller="Grievance" asp-action="MyGrievances" class="sidebar-link @(activeNav == "MyGrievances" ? "active" : "")">
+                <i class="bi bi-file-earmark-text"></i> My Grievances
+            </a>
+        </li>
+        <li>
+            <a asp-controller="Grievance" asp-action="Submit" class="sidebar-link @(activeNav == "SubmitGrievance" ? "active" : "")">
+                <i class="bi bi-plus-circle"></i> Submit Grievance
+            </a>
+        </li>
+        <li>
+            <a asp-controller="Grievance" asp-action="Track" class="sidebar-link @(activeNav == "TrackComplaint" ? "active" : "")">
+                <i class="bi bi-search"></i> Track Complaint
+            </a>
+        </li>
+        <li>
+            <a asp-controller="Grievance" asp-action="Notifications" class="sidebar-link @(activeNav == "Notifications" ? "active" : "")">
+                <i class="bi bi-bell"></i> Notifications
+            </a>
+        </li>
+        <li>
+            <a asp-controller="Account" asp-action="Profile" class="sidebar-link @(activeNav == "Profile" ? "active" : "")">
+                <i class="bi bi-person"></i> Profile
+            </a>
+        </li>
+    </ul>
+
+    <div class="sidebar-footer">
+        <div class="sidebar-profile">
+            <div class="profile-avatar" style="overflow:hidden;">@if (!string.IsNullOrWhiteSpace(userProfilePic)){<img src="@userProfilePic" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />}else{@userInitials}</div>
+            <div class="profile-info">
+                <div class="profile-name">@userFullName</div>
+                <div class="profile-role">Student</div>
             </div>
         </div>
-    </div>
-    
-    <!-- Student Page Body -->
-    <div class="col-lg-9">
-        @RenderBody()
+        <button class="btn-logout" onclick="document.getElementById('logoutForm').submit();">
+            <i class="bi bi-box-arrow-right"></i> Log out
+        </button>
     </div>
 </div>
 
-@section Scripts {
-    @await RenderSectionAsync("Scripts", required: false)
-}
+<!-- MAIN CONTENT AREA -->
+<div class="main-wrapper">
+    <!-- Top Header -->
+    <header class="top-header">
+        <h1 class="header-title">@ViewData["Title"]</h1>
+        <div class="header-actions">
+            <!-- Notifications Bell Dropdown -->
+            <div class="dropdown">
+                <button class="icon-btn" type="button" id="bellDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-bell"></i>
+                    @if (unreadStudentCount > 0)
+                    {
+                        <span class="icon-badge"></span>
+                    }
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2" aria-labelledby="bellDropdown" style="width: 320px; font-size: 0.85rem; border-radius: 12px; margin-top: 10px;">
+                    <li class="dropdown-header fw-bold text-dark d-flex justify-content-between align-items-center border-bottom pb-2">
+                        <span>Notifications (@unreadStudentCount)</span>
+                        @if (unreadStudentCount > 0)
+                        {
+                            <form asp-controller="Grievance" asp-action="MarkAllNotificationsRead" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-link p-0 text-primary fw-semibold text-decoration-none" style="font-size: 0.75rem;">Mark all as read</button>
+                            </form>
+                        }
+                    </li>
+                    @if (unreadStudentNotifications.Any())
+                    {
+                        @foreach (var note in unreadStudentNotifications)
+                        {
+                            <li>
+                                <a class="dropdown-item py-2.5 border-bottom text-wrap text-dark" asp-controller="Grievance" asp-action="Detail" asp-route-id="@note.GrievanceId">
+                                    <div class="fw-semibold mb-0.5" style="color: var(--primary);">@note.Grievance?.TicketNumber</div>
+                                    <div class="text-secondary small">@note.Message</div>
+                                    <div class="text-muted small mt-1 text-end" style="font-size: 0.7rem;">@note.SentAt.ToString("g")</div>
+                                </a>
+                            </li>
+                        }
+                    }
+                    else
+                    {
+                        <li class="text-center py-4 text-muted">
+                            <i class="bi bi-bell-slash fs-4 d-block mb-1"></i>
+                            No unread notifications
+                        </li>
+                    }
+                </ul>
+            </div>
+
+            <!-- Settings Dropdown -->
+            <div class="dropdown">
+                <button class="icon-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="settingsDropdown">
+                    <i class="bi bi-gear"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2" aria-labelledby="settingsDropdown" style="min-width: 200px; border-radius: 12px; margin-top: 10px; font-size: 0.875rem;">
+                    <li class="dropdown-header fw-bold text-dark border-bottom pb-2">Settings</li>
+                    <li>
+                        <a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Account" asp-action="Profile">
+                            <i class="bi bi-person-circle text-primary"></i> My Profile
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Account" asp-action="Profile">
+                            <i class="bi bi-lock text-secondary"></i> Change Password
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <button class="dropdown-item py-2 d-flex align-items-center gap-2 text-danger" onclick="document.getElementById('logoutForm').submit();">
+                            <i class="bi bi-box-arrow-right"></i> Sign Out
+                        </button>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- User Avatar Dropdown -->
+            <div class="dropdown">
+                <div class="header-avatar" style="cursor:pointer;overflow:hidden;" data-bs-toggle="dropdown" aria-expanded="false" id="avatarDropdown">@if(!string.IsNullOrWhiteSpace(userProfilePic)){<img src="@userProfilePic" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />}else{@userInitials}</div>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2" aria-labelledby="avatarDropdown" style="min-width: 220px; border-radius: 12px; margin-top: 10px; font-size: 0.875rem;">
+                    <li class="px-3 py-2 border-bottom">
+                        <div style="font-weight:700; color:#0f172a; font-size:0.9rem;">@userFullName</div>
+                        <div style="font-size:0.78rem; color:#64748b;">Student</div>
+                    </li>
+                    <li>
+                        <a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Account" asp-action="Profile">
+                            <i class="bi bi-person text-primary"></i> View Profile
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Grievance" asp-action="MyGrievances">
+                            <i class="bi bi-file-earmark-text text-primary"></i> My Grievances
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <button class="dropdown-item py-2 d-flex align-items-center gap-2 text-danger" onclick="document.getElementById('logoutForm').submit();">
+                            <i class="bi bi-box-arrow-right"></i> Sign Out
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <!-- Content Body -->
+    <main class="content-body">
+        @RenderBody()
+    </main>
+</div>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+<script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
+

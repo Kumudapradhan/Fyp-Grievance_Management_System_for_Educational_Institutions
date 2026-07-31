@@ -1,59 +1,280 @@
 @model GMS.Web.Models.ViewModels.LoginViewModel
 
 @{
-    ViewData["Title"] = "Log In";
+    ViewData["Title"] = "Sign In — GMS";
+    Layout = null;
 }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign In — GMS</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb; --primary-dark: #1d4ed8;
+            --dark: #0f172a; --slate-500: #64748b; --slate-300: #cbd5e1;
+            --slate-100: #f1f5f9; --success: #10b981; --font: 'Inter', sans-serif;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font); height: 100vh; display: flex; overflow: hidden; }
 
-<div class="row justify-content-center py-5">
-    <div class="col-md-6 col-lg-5">
-        <div class="card shadow-lg border-0 rounded-3 overflow-hidden bg-white">
-            <div class="card-header bg-dark text-white text-center py-4">
-                <h4 class="mb-0 fw-bold"><i class="bi bi-shield-lock-fill me-2 text-primary"></i> GMS Access Portal</h4>
-                <p class="small text-muted mb-0 mt-1">Sign in with your registered credentials</p>
+        /* ── LEFT PANEL ── */
+        .auth-left {
+            width: 45%; min-width: 340px; flex-shrink: 0;
+            background: linear-gradient(150deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%);
+            display: flex; flex-direction: column;
+            padding: 2.5rem; position: relative; overflow: hidden;
+        }
+        .auth-left::before {
+            content: ''; position: absolute; width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 70%);
+            top: -150px; right: -100px; pointer-events: none;
+        }
+        .auth-left::after {
+            content: ''; position: absolute; width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
+            bottom: -100px; left: -100px; pointer-events: none;
+        }
+        .auth-brand {
+            display: flex; align-items: center; gap: 0.6rem;
+            text-decoration: none; color: white; font-weight: 800; font-size: 1.15rem;
+            letter-spacing: -0.03em; margin-bottom: auto; position: relative; z-index: 1;
+        }
+        .auth-brand-icon {
+            width: 34px; height: 34px; border-radius: 9px;
+            background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+            display: flex; align-items: center; justify-content: center; font-size: 1rem;
+        }
+        .auth-illustration {
+            position: relative; z-index: 1; margin: 1.5rem 0;
+        }
+        .auth-illustration img {
+            width: 100%; border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            aspect-ratio: 16/9; object-fit: cover;
+        }
+        .auth-tagline { position: relative; z-index: 1; margin-bottom: 1.5rem; }
+        .auth-tagline h2 {
+            font-size: clamp(1.3rem, 2.5vw, 1.75rem); font-weight: 800;
+            color: white; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 0.6rem;
+        }
+        .auth-tagline p { font-size: 0.9rem; color: rgba(255,255,255,0.7); line-height: 1.6; }
+        .auth-stats {
+            display: flex; gap: 0.75rem; flex-wrap: wrap;
+            position: relative; z-index: 1;
+        }
+        .auth-stat {
+            background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 999px; padding: 0.4rem 0.9rem;
+            font-size: 0.78rem; font-weight: 600; color: rgba(255,255,255,0.9);
+        }
+
+        /* ── RIGHT PANEL ── */
+        .auth-right {
+            flex: 1; background: #f8fafc;
+            display: flex; align-items: center; justify-content: center;
+            padding: 2rem; overflow-y: auto;
+        }
+        .auth-form-wrap { width: 100%; max-width: 400px; }
+
+        .auth-heading { font-size: 1.7rem; font-weight: 800; color: var(--dark); letter-spacing: -0.03em; margin-bottom: 0.3rem; }
+        .auth-subheading { font-size: 0.9rem; color: var(--slate-500); margin-bottom: 1.75rem; }
+
+        /* Role tabs */
+        .role-tabs {
+            display: flex; background: white; border: 1px solid var(--slate-300);
+            border-radius: 10px; padding: 4px; margin-bottom: 1.75rem; gap: 4px;
+        }
+        .role-tab {
+            flex: 1; text-align: center; padding: 0.5rem 0.5rem;
+            font-size: 0.875rem; font-weight: 600; color: var(--slate-500);
+            border-radius: 7px; cursor: pointer; border: none; background: transparent;
+            transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+        .role-tab.active {
+            background: var(--primary); color: white;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+        }
+
+        /* Form fields */
+        .form-group { margin-bottom: 1.1rem; }
+        .form-group label {
+            display: block; font-size: 0.85rem; font-weight: 600;
+            color: var(--dark); margin-bottom: 0.4rem;
+        }
+        .form-group input {
+            width: 100%; padding: 0.7rem 0.9rem;
+            border: 1.5px solid var(--slate-300); border-radius: 8px;
+            font-size: 0.925rem; font-family: var(--font); color: var(--dark);
+            background: white; transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+        .form-group input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+        }
+        .form-group input::placeholder { color: #94a3b8; }
+        .field-error { font-size: 0.78rem; color: #ef4444; margin-top: 0.3rem; display: block; }
+
+        .form-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+        .remember-wrap { display: flex; align-items: center; gap: 0.5rem; }
+        .remember-wrap input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+        .remember-wrap label { font-size: 0.85rem; color: var(--slate-500); cursor: pointer; }
+        .forgot-link { font-size: 0.85rem; font-weight: 600; color: var(--primary); text-decoration: none; }
+        .forgot-link:hover { color: var(--primary-dark); text-decoration: underline; }
+
+        .btn-signin {
+            width: 100%; padding: 0.8rem; background: var(--primary); color: white;
+            font-size: 0.95rem; font-weight: 700; border: none; border-radius: 10px;
+            cursor: pointer; transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+            box-shadow: 0 4px 14px rgba(37,99,235,0.35); margin-bottom: 1.25rem;
+            font-family: var(--font);
+        }
+        .btn-signin:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,99,235,0.4); }
+
+        .auth-footer-link { text-align: center; font-size: 0.875rem; color: var(--slate-500); margin-bottom: 2rem; }
+        .auth-footer-link a { font-weight: 700; color: var(--primary); text-decoration: none; }
+        .auth-footer-link a:hover { text-decoration: underline; }
+
+        .quick-demo { text-align: center; border-top: 1px solid var(--slate-300); padding-top: 1.25rem; }
+        .quick-demo-label { font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem; }
+        .demo-btns { display: flex; gap: 0.5rem; justify-content: center; }
+        .demo-btn {
+            padding: 0.4rem 1rem; font-size: 0.8rem; font-weight: 600;
+            border: 1.5px solid var(--slate-300); border-radius: 8px; background: white;
+            color: var(--slate-500); cursor: pointer; text-decoration: none;
+            transition: border-color 0.15s, color 0.15s, background 0.15s;
+            font-family: var(--font);
+        }
+        .demo-btn:hover { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+
+        .validation-summary { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.85rem; color: #b91c1c; }
+        .validation-summary ul { margin: 0; padding-left: 1.2rem; }
+
+        @@media (max-width: 768px) {
+            .auth-left { display: none; }
+            .auth-right { padding: 2rem 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- LEFT PANEL -->
+<div class="auth-left">
+    <a class="auth-brand" asp-controller="Home" asp-action="Index">
+        <div class="auth-brand-icon"><i class="bi bi-shield-check"></i></div>
+        GMS
+    </a>
+    <div class="auth-illustration">
+        <img src="~/images/graduation_students.png" alt="University graduates celebrating" />
+    </div>
+    <div class="auth-tagline">
+        <h2>Manage grievances with clarity</h2>
+        <p>A transparent, secure platform for every voice in the university community.</p>
+    </div>
+    <div class="auth-stats">
+        <span class="auth-stat">1,200+ Students</span>
+        <span class="auth-stat">98% Resolved</span>
+        <span class="auth-stat">6 Departments</span>
+    </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="auth-right">
+    <div class="auth-form-wrap">
+        <h1 class="auth-heading">Welcome back</h1>
+        <p class="auth-subheading">Sign in to your account to continue.</p>
+
+        <!-- Role selector tabs (visual only) -->
+        <div class="role-tabs" id="roleTabs">
+            <button type="button" class="role-tab active" data-role="Student">Student</button>
+            <button type="button" class="role-tab" data-role="Staff">Staff</button>
+            <button type="button" class="role-tab" data-role="Admin">Admin</button>
+        </div>
+
+        <form asp-action="Login" method="post" id="loginForm">
+            @Html.AntiForgeryToken()
+
+            @if (!ViewData.ModelState.IsValid && ViewData.ModelState.ErrorCount > 0)
+            {
+                <div class="validation-summary">
+                    <div asp-validation-summary="ModelOnly"></div>
+                </div>
+            }
+
+            <div class="form-group">
+                <label asp-for="Email">Email Address</label>
+                <input asp-for="Email" type="email" id="emailInput" placeholder="student@university.edu" autocomplete="email" />
+                <span asp-validation-for="Email" class="field-error"></span>
             </div>
-            <div class="card-body p-4">
-                <form asp-action="Login" method="post">
-                    @Html.AntiForgeryToken()
-                    
-                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3 small"></div>
-                    
-                    <div class="mb-3">
-                        <label asp-for="Email" class="form-label fw-semibold">Email Address</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-light"><i class="bi bi-envelope"></i></span>
-                            <input asp-for="Email" class="form-control form-control-gms" placeholder="name@gms.edu.my" />
-                        </div>
-                        <span asp-validation-for="Email" class="text-danger small"></span>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label asp-for="Password" class="form-label fw-semibold">Password</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-light"><i class="bi bi-key"></i></span>
-                            <input asp-for="Password" type="password" class="form-control form-control-gms" placeholder="••••••••" />
-                        </div>
-                        <span asp-validation-for="Password" class="text-danger small"></span>
-                    </div>
 
-                    <div class="mb-4 form-check">
-                        <input asp-for="RememberMe" class="form-check-input" />
-                        <label asp-for="RememberMe" class="form-check-label text-secondary small">Remember my session</label>
-                    </div>
+            <div class="form-group">
+                <label asp-for="Password">Password</label>
+                <input asp-for="Password" type="password" placeholder="••••••••" autocomplete="current-password" />
+                <span asp-validation-for="Password" class="field-error"></span>
+            </div>
 
-                    <button type="submit" class="btn btn-primary btn-gms-primary w-100 py-2.5 mb-3">
-                        <i class="bi bi-box-arrow-in-right me-2"></i> Log In
-                    </button>
-                    
-                    <div class="text-center">
-                        <span class="text-secondary small">New user? </span>
-                        <a asp-action="Register" class="small fw-semibold text-decoration-none">Register Account</a>
-                    </div>
-                </form>
+            <div class="form-row">
+                <div class="remember-wrap">
+                    <input asp-for="RememberMe" type="checkbox" id="rememberMe" />
+                    <label for="rememberMe">Remember me</label>
+                </div>
+                <a asp-action="ForgotPassword" class="forgot-link">Forgot password?</a>
+            </div>
+
+            <button type="submit" class="btn-signin">Sign In</button>
+        </form>
+
+        <p class="auth-footer-link">No account? <a asp-action="Register">Create one</a></p>
+
+        <!-- Quick Demo Access -->
+        <div class="quick-demo">
+            <p class="quick-demo-label">Quick demo access</p>
+            <div class="demo-btns">
+                <button type="button" class="demo-btn" onclick="fillDemo('student')">Student</button>
+                <button type="button" class="demo-btn" onclick="fillDemo('admin')">Admin</button>
+                <button type="button" class="demo-btn" onclick="fillDemo('staff')">Staff</button>
             </div>
         </div>
     </div>
 </div>
 
-@section Scripts {
-    @await Html.PartialAsync("_ValidationScriptsPartial")
-}
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+<script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+<script>
+    // Role tab switch (visual, changes email placeholder)
+    const placeholders = {
+        Student: 'student@university.edu',
+        Staff: 'staff@university.edu',
+        Admin: 'admin@university.edu'
+    };
+    document.querySelectorAll('.role-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.role-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('emailInput').placeholder = placeholders[btn.dataset.role];
+        });
+    });
+
+    // Demo fill helpers
+    function fillDemo(role) {
+        const demos = {
+            student: { email: 'student@demo.com', pass: 'Demo@123' },
+            admin:   { email: 'admin@demo.com',   pass: 'Admin@123' },
+            staff:   { email: 'staff@demo.com',   pass: 'Staff@123' }
+        };
+        const d = demos[role];
+        document.querySelector('input[name="Email"]').value = d.email;
+        document.querySelector('input[name="Password"]').value = d.pass;
+    }
+</script>
+</body>
+</html>
+
+

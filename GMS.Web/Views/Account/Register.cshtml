@@ -1,135 +1,320 @@
 @model GMS.Web.Models.ViewModels.RegisterViewModel
 
 @{
-    ViewData["Title"] = "Register";
+    ViewData["Title"] = "Create Account — GMS";
+    Layout = null;
 }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create Account — GMS</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb; --primary-dark: #1d4ed8;
+            --dark: #0f172a; --slate-500: #64748b; --slate-300: #cbd5e1;
+            --slate-100: #f1f5f9; --success: #10b981; --font: 'Inter', sans-serif;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font); min-height: 100vh; display: flex; }
 
-<div class="row justify-content-center py-5">
-    <div class="col-md-8 col-lg-6">
-        <div class="card shadow-lg border-0 rounded-3 overflow-hidden bg-white">
-            <div class="card-header bg-dark text-white text-center py-4">
-                <h4 class="mb-0 fw-bold"><i class="bi bi-person-plus-fill me-2 text-primary"></i> Create GMS Account</h4>
-                <p class="small text-muted mb-0 mt-1">Register as a student or institutional staff member</p>
-            </div>
-            <div class="card-body p-4">
-                <form asp-action="Register" method="post">
-                    @Html.AntiForgeryToken()
+        /* ── LEFT PANEL ── */
+        .auth-left {
+            width: 38%; min-width: 300px; flex-shrink: 0;
+            background: linear-gradient(150deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%);
+            display: flex; flex-direction: column;
+            padding: 2.5rem; position: relative; overflow: hidden;
+            position: sticky; top: 0; height: 100vh;
+        }
+        .auth-left::before {
+            content: ''; position: absolute; width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 70%);
+            top: -150px; right: -100px; pointer-events: none;
+        }
+        .auth-left::after {
+            content: ''; position: absolute; width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
+            bottom: -100px; left: -100px; pointer-events: none;
+        }
+        .auth-brand {
+            display: flex; align-items: center; gap: 0.6rem;
+            text-decoration: none; color: white; font-weight: 800; font-size: 1.15rem;
+            letter-spacing: -0.03em; margin-bottom: auto; position: relative; z-index: 1;
+        }
+        .auth-brand-icon {
+            width: 34px; height: 34px; border-radius: 9px;
+            background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+            display: flex; align-items: center; justify-content: center; font-size: 1rem;
+        }
+        .auth-illustration { position: relative; z-index: 1; margin: 1.5rem 0; }
+        .auth-illustration img {
+            width: 100%; border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            aspect-ratio: 16/9; object-fit: cover;
+        }
+        .auth-tagline { position: relative; z-index: 1; margin-bottom: 1.5rem; }
+        .auth-tagline h2 {
+            font-size: clamp(1.2rem, 2vw, 1.6rem); font-weight: 800;
+            color: white; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 0.6rem;
+        }
+        .auth-tagline p { font-size: 0.875rem; color: rgba(255,255,255,0.7); line-height: 1.6; }
+        .auth-stats { display: flex; gap: 0.6rem; flex-wrap: wrap; position: relative; z-index: 1; }
+        .auth-stat {
+            background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 999px; padding: 0.35rem 0.8rem;
+            font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.9);
+        }
 
-                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3 small"></div>
+        /* ── RIGHT PANEL ── */
+        .auth-right {
+            flex: 1; background: #f8fafc;
+            display: flex; align-items: flex-start; justify-content: center;
+            padding: 2.5rem 2rem; overflow-y: auto;
+        }
+        .auth-form-wrap { width: 100%; max-width: 520px; padding-bottom: 2rem; }
 
-                    <!-- Role Selection -->
-                    @if (User.IsInRole("Administrator"))
-                    {
-                        <div class="mb-4 text-center">
-                            <label class="form-label d-block fw-bold mb-3 text-secondary">REGISTER AS</label>
-                            <div class="btn-group w-100" role="group" aria-label="Role selector toggle">
-                                <input type="radio" class="btn-check" name="Role" id="roleStudent" value="Student" checked />
-                                <label class="btn btn-outline-primary py-2.5 fw-semibold" for="roleStudent">
-                                    <i class="bi bi-person-workspace me-2"></i> Student
-                                </label>
+        .auth-heading { font-size: 1.7rem; font-weight: 800; color: var(--dark); letter-spacing: -0.03em; margin-bottom: 0.3rem; }
+        .auth-subheading { font-size: 0.9rem; color: var(--slate-500); margin-bottom: 1.75rem; }
 
-                                <input type="radio" class="btn-check" name="Role" id="roleStaff" value="Staff" />
-                                <label class="btn btn-outline-primary py-2.5 fw-semibold" for="roleStaff">
-                                    <i class="bi bi-briefcase me-2"></i> Academic Staff
-                                </label>
-                            </div>
-                        </div>
-                    }
-                    else
-                    {
-                        <input type="hidden" name="Role" value="Student" />
-                    }
+        /* Role tabs */
+        .role-tabs {
+            display: flex; background: white; border: 1px solid var(--slate-300);
+            border-radius: 10px; padding: 4px; margin-bottom: 1.75rem; gap: 4px;
+        }
+        .role-tab {
+            flex: 1; text-align: center; padding: 0.5rem;
+            font-size: 0.875rem; font-weight: 600; color: var(--slate-500);
+            border-radius: 7px; cursor: pointer; border: none; background: transparent;
+            transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+        .role-tab.active {
+            background: var(--primary); color: white;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+        }
 
-                    <hr class="mb-4" />
+        /* Form layout */
+        .form-group { margin-bottom: 1rem; }
+        .form-group label {
+            display: block; font-size: 0.84rem; font-weight: 600;
+            color: var(--dark); margin-bottom: 0.35rem;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%; padding: 0.65rem 0.9rem;
+            border: 1.5px solid var(--slate-300); border-radius: 8px;
+            font-size: 0.9rem; font-family: var(--font); color: var(--dark);
+            background: white; transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none; appearance: none;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+        }
+        .form-group input::placeholder { color: #94a3b8; }
+        .field-error { font-size: 0.77rem; color: #ef4444; margin-top: 0.3rem; display: block; }
 
-                    <!-- Common Fields -->
-                    <div class="mb-3">
-                        <label asp-for="FullName" class="form-label fw-semibold">Full Name</label>
-                        <input asp-for="FullName" class="form-control form-control-gms" placeholder="John Doe" />
-                        <span asp-validation-for="FullName" class="text-danger small"></span>
-                    </div>
+        .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+        @@media (max-width: 480px) { .form-row-2 { grid-template-columns: 1fr; } }
 
-                    <div class="mb-3">
-                        <label asp-for="Email" class="form-label fw-semibold">Email Address</label>
-                        <input asp-for="Email" type="email" class="form-control form-control-gms" placeholder="john.doe@gms.edu.my" />
-                        <span asp-validation-for="Email" class="text-danger small"></span>
-                    </div>
+        .section-divider {
+            display: flex; align-items: center; gap: 0.75rem;
+            margin: 1.25rem 0; color: #94a3b8; font-size: 0.8rem; font-weight: 500;
+        }
+        .section-divider::before, .section-divider::after {
+            content: ''; flex: 1; height: 1px; background: var(--slate-300);
+        }
 
-                    <!-- Student Specific Wrapper -->
-                    <div id="studentFields" class="mb-3">
-                        <div class="row g-3">
-                            <div class="col-sm-6">
-                                <label asp-for="StudentId" class="form-label fw-semibold">Student ID</label>
-                                <input asp-for="StudentId" class="form-control form-control-gms" placeholder="e.g. NP069687" />
-                                <span asp-validation-for="StudentId" class="text-danger small"></span>
-                            </div>
-                            <div class="col-sm-6">
-                                <label asp-for="Programme" class="form-label fw-semibold">Academic Programme</label>
-                                <input asp-for="Programme" class="form-control form-control-gms" placeholder="e.g. BSc IT (Hons)" />
-                                <span asp-validation-for="Programme" class="text-danger small"></span>
-                            </div>
-                        </div>
-                    </div>
+        .btn-register {
+            width: 100%; padding: 0.8rem; background: var(--primary); color: white;
+            font-size: 0.95rem; font-weight: 700; border: none; border-radius: 10px;
+            cursor: pointer; transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+            box-shadow: 0 4px 14px rgba(37,99,235,0.35); margin-top: 0.5rem; margin-bottom: 1.25rem;
+            font-family: var(--font);
+        }
+        .btn-register:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,99,235,0.4); }
 
-                    <!-- Staff Specific Wrapper -->
-                    <div id="staffFields" class="mb-3" style="display: none;">
-                        <label asp-for="Department" class="form-label fw-semibold">Assigned Department</label>
-                        <select asp-for="Department" asp-items="ViewBag.Departments" class="form-select form-control-gms">
-                            <option value="">-- Select Department --</option>
-                        </select>
-                        <span asp-validation-for="Department" class="text-danger small"></span>
-                    </div>
+        .auth-footer-link { text-align: center; font-size: 0.875rem; color: var(--slate-500); }
+        .auth-footer-link a { font-weight: 700; color: var(--primary); text-decoration: none; }
+        .auth-footer-link a:hover { text-decoration: underline; }
 
-                    <!-- Passwords -->
-                    <div class="row g-3 mb-4">
-                        <div class="col-sm-6">
-                            <label asp-for="Password" class="form-label fw-semibold">Password</label>
-                            <input asp-for="Password" type="password" class="form-control form-control-gms" placeholder="Min 6 characters" />
-                            <span asp-validation-for="Password" class="text-danger small"></span>
-                        </div>
-                        <div class="col-sm-6">
-                            <label asp-for="ConfirmPassword" class="form-label fw-semibold">Confirm Password</label>
-                            <input asp-for="ConfirmPassword" type="password" class="form-control form-control-gms" placeholder="Re-enter password" />
-                            <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
-                        </div>
-                    </div>
+        .validation-summary { background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.84rem; color: #b91c1c; }
 
-                    <button type="submit" class="btn btn-primary btn-gms-primary w-100 py-2.5 mb-3">
-                        <i class="bi bi-person-check-fill me-2"></i> Register Account
-                    </button>
+        /* Animated field sections */
+        .fields-section { overflow: hidden; transition: max-height 0.3s ease, opacity 0.2s ease; }
+        .fields-section.hidden { max-height: 0 !important; opacity: 0; pointer-events: none; }
 
-                    <div class="text-center">
-                        <span class="text-secondary small">Already have an account? </span>
-                        <a asp-action="Login" class="small fw-semibold text-decoration-none">Access Portal</a>
-                    </div>
-                </form>
-            </div>
-        </div>
+        @@media (max-width: 768px) {
+            .auth-left { display: none; }
+            .auth-right { padding: 2rem 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- LEFT PANEL -->
+<div class="auth-left">
+    <a class="auth-brand" asp-controller="Home" asp-action="Index">
+        <div class="auth-brand-icon"><i class="bi bi-shield-check"></i></div>
+        GMS
+    </a>
+    <div class="auth-illustration">
+        <img src="~/images/graduation_students.png" alt="University graduates celebrating" />
+    </div>
+    <div class="auth-tagline">
+        <h2>Join the university grievance community</h2>
+        <p>Create your account and start submitting, tracking, and resolving grievances with transparency.</p>
+    </div>
+    <div class="auth-stats">
+        <span class="auth-stat">1,200+ Students</span>
+        <span class="auth-stat">98% Resolved</span>
+        <span class="auth-stat">6 Departments</span>
     </div>
 </div>
 
-@section Scripts {
-    @await Html.PartialAsync("_ValidationScriptsPartial")
-    
-    <script>
-        $(document).ready(function () {
-            // Function to toggle inputs based on role selection
-            function toggleFields() {
-                var selectedRole = $('input[name="Role"]:checked').val();
-                if (selectedRole === 'Student') {
-                    $('#studentFields').slideDown(200);
-                    $('#staffFields').slideUp(200);
-                } else {
-                    $('#studentFields').slideUp(200);
-                    $('#staffFields').slideDown(200);
-                }
+<!-- RIGHT PANEL -->
+<div class="auth-right">
+    <div class="auth-form-wrap">
+        <h1 class="auth-heading">Create your account</h1>
+        <p class="auth-subheading">Fill in your details below to get started.</p>
+
+        <form asp-action="Register" method="post" id="registerForm">
+            @Html.AntiForgeryToken()
+
+            @if (!ViewData.ModelState.IsValid && ViewData.ModelState.ErrorCount > 0)
+            {
+                <div class="validation-summary">
+                    <div asp-validation-summary="ModelOnly"></div>
+                </div>
             }
 
-            // Bind trigger events
-            $('input[name="Role"]').change(toggleFields);
-            
-            // Trigger initial loading toggle
-            toggleFields();
+            <!-- Role Selector -->
+            @if (User.IsInRole("Administrator"))
+            {
+                <!-- Admin can choose Student or Staff -->
+                <div class="role-tabs" id="roleTabs">
+                    <button type="button" class="role-tab active" data-role="Student" onclick="switchRole('Student')">
+                        <i class="bi bi-person-workspace me-1"></i> Student
+                    </button>
+                    <button type="button" class="role-tab" data-role="Staff" onclick="switchRole('Staff')">
+                        <i class="bi bi-briefcase me-1"></i> Staff
+                    </button>
+                </div>
+                <input type="hidden" name="Role" id="roleInput" value="Student" />
+            }
+            else
+            {
+                <!-- Public registration is always Student -->
+                <div class="role-tabs">
+                    <button type="button" class="role-tab active" style="pointer-events:none;">
+                        <i class="bi bi-person-workspace me-1"></i> Student
+                    </button>
+                    <button type="button" class="role-tab" style="pointer-events:none; opacity:0.4;">
+                        <i class="bi bi-briefcase me-1"></i> Staff
+                    </button>
+                </div>
+                <input type="hidden" name="Role" value="Student" />
+            }
+
+            <!-- Personal Details -->
+            <div class="section-divider">Personal Details</div>
+
+            <div class="form-group">
+                <label asp-for="FullName">Full Name</label>
+                <input asp-for="FullName" placeholder="e.g. John Doe" />
+                <span asp-validation-for="FullName" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Email">Email Address</label>
+                <input asp-for="Email" type="email" placeholder="john.doe@university.edu" autocomplete="email" />
+                <span asp-validation-for="Email" class="field-error"></span>
+            </div>
+
+            <!-- Student-specific fields -->
+            <div id="studentFields" class="fields-section" style="max-height: 200px; opacity: 1;">
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label asp-for="StudentId">Student ID</label>
+                        <input asp-for="StudentId" placeholder="e.g. NP069687" />
+                        <span asp-validation-for="StudentId" class="field-error"></span>
+                    </div>
+                    <div class="form-group">
+                        <label asp-for="Programme">Academic Programme</label>
+                        <input asp-for="Programme" placeholder="e.g. BSc IT (Hons)" />
+                        <span asp-validation-for="Programme" class="field-error"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Staff-specific fields -->
+            <div id="staffFields" class="fields-section hidden" style="max-height: 0;">
+                <div class="form-group">
+                    <label asp-for="Department">Assigned Department</label>
+                    <select asp-for="Department" asp-items="ViewBag.Departments">
+                        <option value="">— Select Department —</option>
+                    </select>
+                    <span asp-validation-for="Department" class="field-error"></span>
+                </div>
+            </div>
+
+            <!-- Password -->
+            <div class="section-divider">Security</div>
+
+            <div class="form-row-2">
+                <div class="form-group">
+                    <label asp-for="Password">Password</label>
+                    <input asp-for="Password" type="password" placeholder="Min. 6 characters" autocomplete="new-password" />
+                    <span asp-validation-for="Password" class="field-error"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="ConfirmPassword">Confirm Password</label>
+                    <input asp-for="ConfirmPassword" type="password" placeholder="Re-enter password" autocomplete="new-password" />
+                    <span asp-validation-for="ConfirmPassword" class="field-error"></span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-register">
+                <i class="bi bi-person-check-fill me-1"></i> Create Account
+            </button>
+        </form>
+
+        <p class="auth-footer-link">Already have an account? <a asp-action="Login">Sign in</a></p>
+    </div>
+</div>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+<script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+<script>
+    function switchRole(role) {
+        // Update hidden input
+        var ri = document.getElementById('roleInput');
+        if (ri) ri.value = role;
+
+        // Update tabs
+        document.querySelectorAll('.role-tab').forEach(b => {
+            b.classList.toggle('active', b.dataset.role === role);
         });
-    </script>
-}
+
+        // Show/hide fields with animation
+        const sf = document.getElementById('studentFields');
+        const stf = document.getElementById('staffFields');
+        if (role === 'Student') {
+            sf.style.maxHeight = '200px'; sf.style.opacity = '1'; sf.classList.remove('hidden');
+            stf.style.maxHeight = '0'; stf.style.opacity = '0'; stf.classList.add('hidden');
+        } else {
+            sf.style.maxHeight = '0'; sf.style.opacity = '0'; sf.classList.add('hidden');
+            stf.style.maxHeight = '120px'; stf.style.opacity = '1'; stf.classList.remove('hidden');
+        }
+    }
+</script>
+</body>
+</html>
+
+

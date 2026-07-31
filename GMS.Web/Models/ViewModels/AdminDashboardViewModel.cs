@@ -29,5 +29,19 @@ namespace GMS.Web.Models.ViewModels
         public string? SearchQuery { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
+
+        // Additional admin fields
+        public int TotalUsersCount { get; set; }
+        public int TotalDepartmentsCount { get; set; }
+        
+        // Chart JSON representation
+        public string ComplaintsByDepartmentJson { get; set; } = "[]";
+        public string ComplaintsByCategoryJson { get; set; } = "[]";
+        public string MonthlyComplaintTrendJson { get; set; } = "[]";
+        public string OpenVsClosedJson { get; set; } = "[]";
+        public string AverageResolutionTimeJson { get; set; } = "[]";
+
+        // Recent Audit logs
+        public List<AuditLog> RecentActivity { get; set; } = new List<AuditLog>();
     }
 }

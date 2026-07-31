@@ -48,12 +48,41 @@ namespace GMS.Web.Controllers
                 .OrderByDescending(n => n.SentAt)
                 .ToListAsync();
 
+            // Gather student statistics
+            var totalGrievances = grievances.Count;
+            var open = grievances.Count(g => g.Status == GrievanceStatus.Open);
+            var inProgress = grievances.Count(g => g.Status == GrievanceStatus.InProgress);
+            var resolved = grievances.Count(g => g.Status == GrievanceStatus.Resolved);
+            var highPriority = grievances.Count(g => g.Priority == GrievancePriority.High && g.Status != GrievanceStatus.Resolved);
+
+            // Personal complaint history: Group by month and count
+            var historyData = grievances
+                .GroupBy(g => new { Year = g.SubmittedAt.Year, Month = g.SubmittedAt.Month })
+                .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
+                .Select(g => new { label = $"{g.Key.Year}-{g.Key.Month:D2}", count = g.Count() })
+                .ToList();
+
+            // Status distribution: Open, In Progress, Resolved
+            var distributionData = new[]
+            {
+                new { label = "Open", count = open },
+                new { label = "In Progress", count = inProgress },
+                new { label = "Resolved", count = resolved }
+            };
+
             var viewModel = new StudentDashboardViewModel
             {
                 OwnGrievances = grievances,
                 Notifications = notifications,
                 StudentName = user?.FullName ?? "Student",
-                StudentIdString = user?.StudentId ?? ""
+                StudentIdString = user?.StudentId ?? "",
+                TotalGrievancesCount = totalGrievances,
+                OpenCount = open,
+                InProgressCount = inProgress,
+                ResolvedCount = resolved,
+                HighPriorityCount = highPriority,
+                PersonalHistoryJson = System.Text.Json.JsonSerializer.Serialize(historyData),
+                StatusDistributionJson = System.Text.Json.JsonSerializer.Serialize(distributionData)
             };
 
             return View(viewModel);
@@ -84,6 +113,7 @@ namespace GMS.Web.Controllers
                     CategoryId = model.CategoryId,
                     IncidentDate = model.IncidentDate,
                     IsAnonymous = model.IsAnonymous,
+                    Priority = model.Priority,
                     StudentId = model.IsAnonymous ? null : userId
                 };
 
@@ -180,6 +210,7 @@ namespace GMS.Web.Controllers
             var grievance = await _context.Grievances
                 .Include(g => g.Category)
                 .Include(g => g.Department)
+                .Include(g => g.AssignedStaffUser)
                 .Include(g => g.StatusHistory)
                 .FirstOrDefaultAsync(g => g.TicketNumber == ticketNumber.Trim());
 
@@ -236,6 +267,22 @@ namespace GMS.Web.Controllers
             return PhysicalFile(filePath, contentType, attachment.FileName);
         }
 
+        // Notifications Page
+        [HttpGet]
+        public async Task<IActionResult> Notifications()
+        {
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userId)) return Challenge();
+
+            var notifications = await _context.Notifications
+                .Include(n => n.Grievance)
+                .Where(n => n.UserId == userId)
+                .OrderByDescending(n => n.SentAt)
+                .ToListAsync();
+
+            return View(notifications);
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> MarkNotificationRead(int id)
@@ -249,7 +296,7 @@ namespace GMS.Web.Controllers
                 await _context.SaveChangesAsync();
             }
 
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Notifications));
         }
 
         [HttpPost]
@@ -270,7 +317,72 @@ namespace GMS.Web.Controllers
 
             await _context.SaveChangesAsync();
             TempData["SuccessMessage"] = "All notifications marked as read.";
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Notifications));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddComment(int grievanceId, string content)
+        {
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrWhiteSpace(content))
+            {
+                return RedirectToAction(nameof(Detail), new { id = grievanceId });
+            }
+
+            var grievance = await _context.Grievances.FindAsync(grievanceId);
+            if (grievance == null) return NotFound();
+
+            // Authorization check
+            if (!User.IsInRole("Administrator") && !User.IsInRole("Staff") && grievance.StudentId != userId)
+            {
+                return Forbid();
+            }
+
+            var comment = new Comment
+            {
+                GrievanceId = grievanceId,
+                UserId = userId,
+                Content = content.Trim(),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Comments.Add(comment);
+            
+            // Save audit or notification if needed, but simple comment is fine
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction(nameof(Detail), new { id = grievanceId });
+        }
+
+        // My Grievances — dedicated standalone list page (student)
+        [HttpGet]
+        public async Task<IActionResult> MyGrievances(string? status = null, string? search = null)
+        {
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userId)) return Challenge();
+
+            var grievances = await _grievanceService.GetGrievancesByStudentAsync(userId);
+
+            // Apply status filter
+            if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<GrievanceStatus>(status, true, out var parsedStatus))
+            {
+                grievances = grievances.Where(g => g.Status == parsedStatus).ToList();
+            }
+
+            // Apply text search on title or ticket number
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                search = search.Trim();
+                grievances = grievances
+                    .Where(g => g.Title.Contains(search, StringComparison.OrdinalIgnoreCase)
+                             || g.TicketNumber.Contains(search, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            ViewBag.StatusFilter = status ?? "";
+            ViewBag.SearchFilter = search ?? "";
+            return View(grievances);
         }
 
         // AJAX endpoint for dynamically displaying department name

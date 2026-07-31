@@ -13,8 +13,9 @@ namespace GMS.Web.Models.Entities
 
     public enum GrievancePriority
     {
-        Normal = 0,
-        High = 1
+        Low = 0,
+        Medium = 1,
+        High = 2
     }
 
     public class Grievance
@@ -53,7 +54,7 @@ namespace GMS.Web.Models.Entities
         public GrievanceStatus Status { get; set; } = GrievanceStatus.Open;
         
         [Required]
-        public GrievancePriority Priority { get; set; } = GrievancePriority.Normal;
+        public GrievancePriority Priority { get; set; } = GrievancePriority.Low;
         
         [Required]
         public DateTime IncidentDate { get; set; }

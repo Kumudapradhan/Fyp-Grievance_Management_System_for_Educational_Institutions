@@ -58,14 +58,16 @@ namespace GMS.Web.Controllers
             }
 
             // Gather statistics specific to this department
-            var totalCount = await _context.Grievances.CountAsync(g => g.DepartmentId == department.Id);
-            var openCount = await _context.Grievances.CountAsync(g => g.DepartmentId == department.Id && g.Status == GrievanceStatus.Open);
+            var assignedCount = await _context.Grievances.CountAsync(g => g.DepartmentId == department.Id && g.AssignedStaffUserId == user.Id);
+            var pendingCount = await _context.Grievances.CountAsync(g => g.DepartmentId == department.Id && g.Status == GrievanceStatus.Open && g.AssignedStaffUserId == null);
             var progressCount = await _context.Grievances.CountAsync(g => g.DepartmentId == department.Id && g.Status == GrievanceStatus.InProgress);
-            var resolvedCount = await _context.Grievances.CountAsync(g => g.DepartmentId == department.Id && g.Status == GrievanceStatus.Resolved);
+            
+            var today = DateTime.Today;
+            var resolvedTodayCount = await _context.Grievances.CountAsync(g => g.DepartmentId == department.Id && g.Status == GrievanceStatus.Resolved && g.ClosedAt >= today);
             var overdueCount = await _context.Grievances.CountAsync(g => g.DepartmentId == department.Id && g.IsOverdue && g.Status != GrievanceStatus.Resolved);
 
             // Fetch filtered grievances within staff member's department
-            var grievances = await _grievanceService.GetAllGrievancesAsync(
+            var departmentGrievances = await _grievanceService.GetAllGrievancesAsync(
                 status: status,
                 departmentId: department.Id,
                 categoryId: null,
@@ -75,25 +77,53 @@ namespace GMS.Web.Controllers
 
             if (myAssigned)
             {
-                grievances = grievances.Where(g => g.AssignedStaffUserId == user.Id).ToList();
+                departmentGrievances = departmentGrievances.Where(g => g.AssignedStaffUserId == user.Id).ToList();
             }
 
-            var viewModel = new AdminDashboardViewModel
+            // Fetch recent activities in this department
+            var recentActivity = await _context.GrievanceStatusHistories
+                .Include(h => h.Grievance)
+                .Include(h => h.ChangedByUser)
+                .Where(h => h.Grievance.DepartmentId == department.Id)
+                .OrderByDescending(h => h.ChangedAt)
+                .Take(5)
+                .ToListAsync();
+
+            // Chart 1: Assigned vs Completed for this officer
+            var myOpen = await _context.Grievances.CountAsync(g => g.AssignedStaffUserId == user.Id && g.Status != GrievanceStatus.Resolved);
+            var myResolved = await _context.Grievances.CountAsync(g => g.AssignedStaffUserId == user.Id && g.Status == GrievanceStatus.Resolved);
+            var assignedVsCompleted = new[]
             {
-                TotalCount = totalCount,
-                OpenCount = openCount,
-                InProgressCount = progressCount,
-                ResolvedCount = resolvedCount,
-                OverdueCount = overdueCount,
-                Grievances = grievances,
-                SelectedStatus = status,
-                SelectedPriority = priority,
-                SearchQuery = search
+                new { label = "Active Assigned", count = myOpen },
+                new { label = "Resolved", count = myResolved }
             };
 
-            ViewBag.DepartmentName = department.Name;
-            ViewBag.DepartmentDescription = department.Description;
-            ViewBag.MyAssigned = myAssigned;
+            // Chart 2: Monthly workload (tickets resolved by this officer per month)
+            var resolvedByMonth = await _context.Grievances
+                .Where(g => g.AssignedStaffUserId == user.Id && g.Status == GrievanceStatus.Resolved && g.ClosedAt != null)
+                .GroupBy(g => new { Year = g.ClosedAt!.Value.Year, Month = g.ClosedAt!.Value.Month })
+                .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
+                .Select(g => new { label = $"{g.Key.Year}-{g.Key.Month:D2}", count = g.Count() })
+                .ToListAsync();
+
+            var viewModel = new StaffDashboardViewModel
+            {
+                AssignedCount = assignedCount,
+                PendingCount = pendingCount,
+                InProgressCount = progressCount,
+                ResolvedTodayCount = resolvedTodayCount,
+                OverdueCount = overdueCount,
+                DepartmentGrievances = departmentGrievances,
+                RecentActivity = recentActivity,
+                AssignedVsCompletedJson = System.Text.Json.JsonSerializer.Serialize(assignedVsCompleted),
+                MonthlyWorkloadJson = System.Text.Json.JsonSerializer.Serialize(resolvedByMonth),
+                DepartmentName = department.Name,
+                DepartmentDescription = department.Description,
+                SelectedStatus = status,
+                SelectedPriority = priority,
+                SearchQuery = search,
+                MyAssignedOnly = myAssigned
+            };
 
             return View(viewModel);
         }
@@ -197,6 +227,7 @@ namespace GMS.Web.Controllers
             grievance.Status = GrievanceStatus.Resolved;
             grievance.ResolutionNotes = resolutionNotes;
             grievance.LastUpdatedAt = DateTime.UtcNow;
+            grievance.ClosedAt = DateTime.UtcNow;
 
             // Log status history
             var history = new GrievanceStatusHistory

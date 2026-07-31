@@ -101,6 +101,7 @@ namespace GMS.Tests
             Assert.IsNotNull(updated);
             Assert.AreEqual(GrievanceStatus.Resolved, updated.Status);
             Assert.AreEqual("Resolution complete.", updated.ResolutionNotes);
+            Assert.IsNotNull(updated.ClosedAt);
 
             // Audit Log
             var audit = await context.AuditLogs.AnyAsync(a => a.Action == "MarkResolved" && a.EntityId == "1");
@@ -179,6 +180,7 @@ namespace GMS.Tests
             var updated = await context.Grievances.FindAsync(2);
             Assert.IsNotNull(updated);
             Assert.AreEqual(GrievanceStatus.Resolved, updated.Status);
+            Assert.IsNotNull(updated.ClosedAt);
 
             // Skip notification
             var notification = await context.Notifications.AnyAsync(n => n.GrievanceId == 2);

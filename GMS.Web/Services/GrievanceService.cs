@@ -2,6 +2,7 @@ using GMS.Web.Data;
 using GMS.Web.Models.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -34,6 +35,7 @@ namespace GMS.Web.Services
         private readonly INotificationService _notificationService;
         private readonly IRepetitiveDetectionService _repetitiveDetectionService;
         private readonly ILogger<GrievanceService> _logger;
+        private readonly IConfiguration _configuration;
 
         public GrievanceService(
             ApplicationDbContext context, 
@@ -41,7 +43,8 @@ namespace GMS.Web.Services
             IFileUploadService fileUploadService, 
             INotificationService notificationService,
             IRepetitiveDetectionService repetitiveDetectionService,
-            ILogger<GrievanceService> logger)
+            ILogger<GrievanceService> logger,
+            IConfiguration configuration)
         {
             _context = context;
             _ticketService = ticketService;
@@ -49,18 +52,25 @@ namespace GMS.Web.Services
             _notificationService = notificationService;
             _repetitiveDetectionService = repetitiveDetectionService;
             _logger = logger;
+            _configuration = configuration;
         }
 
         public async Task<Grievance> SubmitGrievanceAsync(Grievance grievance, List<IFormFile> files, string? sessionEmail)
         {
             // 1. Generate unique ticket number
             grievance.TicketNumber = await _ticketService.GenerateTicketNumberAsync();
-            grievance.SubmittedAt = DateTime.UtcNow;
-            grievance.LastUpdatedAt = DateTime.UtcNow;
+            var submittedAt = DateTime.UtcNow;
+            grievance.SubmittedAt = submittedAt;
+            grievance.LastUpdatedAt = submittedAt;
             grievance.Status = GrievanceStatus.Open;
-            grievance.Priority = GrievancePriority.Normal;
             grievance.IsOverdue = false;
             grievance.IsRepetitive = false;
+
+            var slaEnabled = _configuration.GetValue<bool>("SLA:Enabled", true);
+            var overdueDays = _configuration.GetValue<int>("SLA:OverdueDays", 7);
+            grievance.DueDate = slaEnabled && overdueDays > 0
+                ? submittedAt.AddDays(overdueDays)
+                : null;
 
             // 2. Fetch Category and Default Department for auto-routing
             var category = await _context.Categories.FindAsync(grievance.CategoryId);
@@ -202,6 +212,7 @@ GMS Admin Portal";
             if (newStatus == GrievanceStatus.Resolved)
             {
                 grievance.ResolutionNotes = notes;
+                grievance.ClosedAt = DateTime.UtcNow;
             }
 
             // Add Status History log
@@ -267,6 +278,8 @@ GMS Admin Portal";
                 .Include(g => g.Student)
                 .Include(g => g.AssignedStaffUser)
                 .Include(g => g.Attachments)
+                .Include(g => g.Comments)
+                    .ThenInclude(c => c.User)
                 .Include(g => g.StatusHistory)
                     .ThenInclude(sh => sh.ChangedByUser)
                 .FirstOrDefaultAsync(g => g.Id == id);
