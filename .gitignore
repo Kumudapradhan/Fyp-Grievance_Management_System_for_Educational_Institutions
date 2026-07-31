@@ -27,3 +27,7 @@ project.assets.json
 ## OS-specific files
 .DS_Store
 Thumbs.db
+
+## Runtime-generated application data
+GMS.Web/wwwroot/sent_emails/
+GMS.Web/wwwroot/uploads/profiles/
