@@ -2,12 +2,6 @@
 
 Grievance Submission, Tracking, and Management Platform built for educational institutions. Designed as a BSc (Hons) Information Technology Final Year Project for Asia Pacific University (APU).
 
-## Project Metadata
-- **Student**: Kumuda Pradhan (ID: NP069687)
-- **Supervisor**: Mr. Subash Khatiwada
-- **Second Marker**: Mr. Gaurav Bhattarai
-- **Sponsor Goal**: SDG Goal 4 — Quality Education
-
 ---
 
 ## Technical Stack
